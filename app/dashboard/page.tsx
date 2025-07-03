@@ -8,6 +8,8 @@ import { HeatMap } from '@/components/ui/HeatMap'
 import { LevelBadge } from '@/components/ui/LevelBadge'
 import { XFeed } from '@/components/ui/XFeed'
 import { GameInfoPopup } from '@/components/ui/GameInfoPopup'
+import { ProjectModal } from '@/components/ui/ProjectModal'
+import { AchievementToast } from '@/components/ui/AchievementToast'
 import { 
   Coins, Target, Calendar, TrendingUp, Zap, Plus, Menu, Bell, HelpCircle,
   LayoutDashboard, Trophy, Rocket, Users, Settings, Crown, Star, DollarSign,
@@ -103,6 +105,9 @@ export default function DashboardPage() {
   const [deepWorkData, setDeepWorkData] = useState<any[]>([])
   const [dailyActions, setDailyActions] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [showProjectModal, setShowProjectModal] = useState(false)
+  const [newAchievements, setNewAchievements] = useState<string[]>([])
+  const [achievementQueue, setAchievementQueue] = useState<string[]>([])  
 
   const fetchUserData = async (userId: string) => {
     setStatsLoading(true)
@@ -164,6 +169,31 @@ export default function DashboardPage() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n' && user) {
+        e.preventDefault()
+        setShowProjectModal(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [user])
+
+  // Handle achievement notifications
+  const showAchievements = (achievements: string[]) => {
+    if (achievements.length > 0) {
+      setNewAchievements(achievements)
+      setAchievementQueue(prev => [...prev, ...achievements])
+    }
+  }
+
+  const dismissAchievement = (achievementId: string) => {
+    setAchievementQueue(prev => prev.filter(id => id !== achievementId))
+  }
   
   // Demo mode for testing without full auth setup
   const mockUser = {
@@ -262,7 +292,10 @@ export default function DashboardPage() {
         </div>
 
         {/* New Project Button */}
-        <button className="flex items-center justify-between gap-3 text-sm font-medium bg-blue-600/20 hover:bg-blue-600/30 transition p-3 rounded-lg">
+        <button 
+          onClick={() => setShowProjectModal(true)}
+          className="flex items-center justify-between gap-3 text-sm font-medium bg-blue-600/20 hover:bg-blue-600/30 transition p-3 rounded-lg"
+        >
           <span className="flex items-center gap-3">
             <Plus className="h-4 w-4" />
             New Project
@@ -569,6 +602,29 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {/* Project Modal */}
+      {user && (
+        <ProjectModal 
+          isOpen={showProjectModal}
+          onClose={() => setShowProjectModal(false)}
+          onSuccess={(achievements?: string[]) => {
+            // Refresh user data after project creation
+            fetchUserData(user.id)
+            // Show achievement notifications if any
+            if (achievements) {
+              showAchievements(achievements)
+            }
+          }}
+          userId={user.id}
+        />
+      )}
+
+      {/* Achievement Notifications */}
+      <AchievementToast 
+        achievements={achievementQueue}
+        onDismiss={dismissAchievement}
+      />
     </div>
   )
 } 

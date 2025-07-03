@@ -198,11 +198,12 @@ export const createProject = async (userId: string, projectData: {
     .single()
 
   // If this is the user's first earning, trigger achievement
+  let newAchievements: string[] = []
   if (!error && projectData.revenue > 0) {
-    await checkAndAwardAchievements(userId, 'first_earning')
+    newAchievements = (await checkAndAwardAchievements(userId, 'first_earning')) || []
   }
 
-  return { data, error }
+  return { data, error, newAchievements }
 }
 
 export const updateProject = async (projectId: string, updates: Partial<{

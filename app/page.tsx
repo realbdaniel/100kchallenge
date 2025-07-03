@@ -212,32 +212,32 @@ export default function HomePage() {
           
           <div className="grid md:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
-                1️⃣
+              <div className="text-6xl mx-auto mb-4 hover:scale-110 hover:rotate-3 transition-transform duration-300 cursor-pointer">
+                💻
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Sign Up</h3>
               <p className="text-white/60">Create your account and choose your builder username</p>
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
-                2️⃣
+              <div className="text-6xl mx-auto mb-4 hover:scale-110 hover:rotate-3 transition-transform duration-300 cursor-pointer">
+                🔌
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Connect</h3>
               <p className="text-white/60">Link your X account and Stripe for tracking</p>
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
-                3️⃣
+              <div className="text-6xl mx-auto mb-4 hover:scale-110 hover:rotate-3 transition-transform duration-300 cursor-pointer">
+                🏗️
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Build</h3>
               <p className="text-white/60">Log your deep work sessions and showcase projects</p>
             </div>
             
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
-                4️⃣
+              <div className="text-6xl mx-auto mb-4 hover:scale-110 hover:rotate-3 transition-transform duration-300 cursor-pointer">
+                💸
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Earn</h3>
               <p className="text-white/60">Watch your revenue battery fill up to $100k!</p>
