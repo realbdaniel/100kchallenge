@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  username      String?   @unique
+  bio           String?
+  
+  // 100k Challenge specific fields
+  totalEarnings     Float   @default(0)
+  currentStreak     Int     @default(0)
+  longestStreak     Int     @default(0)
+  level             Int     @default(1)
+  xp                Int     @default(0)
+  
+  // Social connections
+  twitterHandle     String?
+  stripeAccountId   String?
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  deepWorkSessions  DeepWorkSession[]
+  projects          Project[]
+  twitterPosts      TwitterPost[]
+  earnings          Earning[]
+}
+
+model DeepWorkSession {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @default(now())
+  duration    Int      // in minutes
+  description String?
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  url         String?
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TwitterPost {
+  id        String   @id @default(cuid())
+  userId    String
+  tweetId   String   @unique
+  content   String
+  date      DateTime
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Earning {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Float
+  description String?
+  source      String?  // stripe, manual, etc.
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+} 
