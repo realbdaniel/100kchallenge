@@ -170,7 +170,7 @@ export default function HomePage() {
               <div className="pt-8">
                 <h3 className="text-xl font-bold mb-2 text-left">🌎 Builder Leaderboards</h3>
                 <p className="text-white/60 text-left text-sm mb-4">
-                  Compete with fellow builders! See who's climbing the levels fastest and get inspired.
+                  Compete with fellow builders and showcase your projects! See who's climbing the levels fastest and get inspired.
                 </p>
                 
                 {/* Leaderboard */}
@@ -216,7 +216,7 @@ export default function HomePage() {
                 💻
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Sign Up</h3>
-              <p className="text-white/60">Create your account and choose your builder username</p>
+              <p className="text-white/60">Sign in with your X account add your projects</p>
             </div>
             
             <div className="text-center">
@@ -224,7 +224,7 @@ export default function HomePage() {
                 🔌
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Connect</h3>
-              <p className="text-white/60">Link your X account and Stripe for tracking</p>
+              <p className="text-white/60">Link your Stripe account for tracking and competition</p>
             </div>
             
             <div className="text-center">
@@ -232,7 +232,7 @@ export default function HomePage() {
                 🏗️
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Build</h3>
-              <p className="text-white/60">Log your deep work sessions and showcase projects</p>
+              <p className="text-white/60">Log your deep work sessions and product/content pushes</p>
             </div>
             
             <div className="text-center">
