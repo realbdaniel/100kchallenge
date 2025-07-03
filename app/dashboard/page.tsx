@@ -132,8 +132,8 @@ export default function DashboardPage() {
               🎮 Try Demo Mode
             </button>
             
-            <Link href="/api/auth/signin" className="w-full mario-button-secondary inline-block text-center">
-              🔐 Sign In with Google
+            <Link href="/api/auth/signin?callbackUrl=/dashboard" className="w-full mario-button-secondary inline-block text-center">
+              𝕏 Sign In with X
             </Link>
           </div>
           

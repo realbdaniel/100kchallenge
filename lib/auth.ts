@@ -76,10 +76,7 @@ export const authOptions: NextAuthOptions = {
       return true
     },
   },
-  pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
-  },
+  // Use default NextAuth pages for now
   session: {
     strategy: 'database',
   },
