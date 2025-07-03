@@ -90,7 +90,7 @@ export default async function UserProfilePage({
                 🍄
               </div>
               <div className="absolute -bottom-2 -right-2">
-                <LevelBadge level={user.level} xp={user.xp} className="scale-75" />
+                <LevelBadge level={user.level} earnings={user.totalEarnings} className="scale-75" />
               </div>
             </div>
             
