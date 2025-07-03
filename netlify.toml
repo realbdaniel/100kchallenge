@@ -2,22 +2,12 @@
   command = "npm run build"
   publish = ".next"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 [build.environment]
   NODE_VERSION = "18"
 
-# Enable Netlify Functions for API routes
-[functions]
-  node_bundler = "nft"
+# Use Next.js Runtime for proper App Router support
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 # Headers for better security and performance
 [[headers]]
