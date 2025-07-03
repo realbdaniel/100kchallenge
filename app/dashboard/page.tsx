@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, signInWithTwitter, signOut } from '@/lib/supabase'
+import { supabase, signInWithTwitter, signOut, calculateUserStats, getUserDailyActions, getUserDeepWorkSessions } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { HeatMap } from '@/components/ui/HeatMap'
@@ -98,18 +98,68 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [demoMode, setDemoMode] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userStats, setUserStats] = useState<any>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [deepWorkData, setDeepWorkData] = useState<any[]>([])
+  const [dailyActions, setDailyActions] = useState<any[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchUserData = async (userId: string) => {
+    setStatsLoading(true)
+    try {
+      // Get user stats
+      const stats = await calculateUserStats(userId)
+      if (stats) {
+        setUserStats(stats)
+      }
+
+      // Get daily actions for today
+      const { actions } = await getUserDailyActions(userId)
+      setDailyActions(actions || [])
+
+      // Get deep work sessions for heatmap
+      const { sessions } = await getUserDeepWorkSessions(userId)
+      const formattedSessions = sessions?.map(session => ({
+        date: new Date(session.date),
+        duration: session.duration
+      })) || []
+      setDeepWorkData(formattedSessions)
+
+      setError(null)
+    } catch (err) {
+      console.error('Error fetching user data:', err)
+      setError('Failed to load dashboard data')
+    } finally {
+      setStatsLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // Fetch user data if authenticated
+      if (session?.user?.id) {
+        fetchUserData(session.user.id)
+      }
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // Fetch user data if authenticated
+      if (session?.user?.id) {
+        fetchUserData(session.user.id)
+      } else {
+        // Clear data if signed out
+        setUserStats(null)
+        setDailyActions([])
+        setDeepWorkData([])
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -169,6 +219,18 @@ export default function DashboardPage() {
 
   const currentUser = user || mockUser
   const isDemoMode = !user && demoMode
+  
+  // Use real data or fallback to demo data
+  const displayData = userStats || {
+    totalEarnings: 0,
+    level: 1,
+    currentStreak: 0,
+    longestStreak: 0,
+    activeProjects: 0,
+    totalProjects: 0,
+    dailyCoinsEarned: 0,
+    projects: []
+  }
 
   const navigationItems = [
     { icon: LayoutDashboard, label: 'Studio', href: '/dashboard', active: true },
@@ -256,7 +318,7 @@ export default function DashboardPage() {
             <div>
               <h1 className="text-base lg:text-lg font-medium">Builder Analytics</h1>
               <p className="text-xs lg:text-sm text-white/60">
-                {isDemoMode ? 'Demo Mode • ' : ''}{mockData.totalBuilders} active builders • Level {mockData.level}
+                {isDemoMode ? 'Demo Mode • ' : ''}{user ? `Level ${displayData.level}` : '1,247 active builders • Level 1'}
               </p>
             </div>
           </div>
@@ -278,7 +340,15 @@ export default function DashboardPage() {
         </header>
 
         {/* Dashboard Content */}
-        <section className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+        <section className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 relative">
+          {statsLoading && (
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-10 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-sm text-white/80">Loading your data...</p>
+              </div>
+            </div>
+          )}
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Revenue */}
@@ -286,10 +356,10 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-white/60">Revenue Progress</p>
-                  <p className="text-2xl font-semibold">${mockData.totalEarnings.toLocaleString()}</p>
+                  <p className="text-2xl font-semibold">${displayData.totalEarnings.toLocaleString()}</p>
                   <p className="text-xs text-emerald-400 flex items-center gap-1 mt-1">
                     <ArrowUp className="h-3 w-3" />
-                    {((mockData.totalEarnings / 100000) * 100).toFixed(1)}% to $100k
+                    {((displayData.totalEarnings / 100000) * 100).toFixed(1)}% to $100k
                   </p>
                 </div>
                 <div className="h-10 w-10 bg-green-600/20 rounded-lg flex items-center justify-center">
@@ -297,7 +367,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="mt-3">
-                <ProgressBar current={mockData.totalEarnings} target={100000} />
+                <ProgressBar current={displayData.totalEarnings} target={100000} />
               </div>
             </div>
 
@@ -306,7 +376,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-white/60">Current Streak</p>
-                  <p className="text-2xl font-semibold">{mockData.currentStreak}</p>
+                  <p className="text-2xl font-semibold">{displayData.currentStreak}</p>
                   <p className="text-xs text-orange-400">days in a row 🔥</p>
                 </div>
                 <div className="h-10 w-10 bg-orange-600/20 rounded-lg flex items-center justify-center">
@@ -320,7 +390,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-white/60">Active Projects</p>
-                  <p className="text-2xl font-semibold">{mockData.activeProjects}</p>
+                  <p className="text-2xl font-semibold">{displayData.activeProjects}</p>
                   <p className="text-xs text-blue-400">building empire</p>
                 </div>
                 <div className="h-10 w-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
@@ -332,8 +402,8 @@ export default function DashboardPage() {
             {/* Level & Coins */}
             <div className="stat-card">
               <LevelBadge 
-                earnings={mockData.totalEarnings}
-                totalCoins={750}
+                earnings={displayData.totalEarnings}
+                totalCoins={userStats?.profile?.total_coins || 0}
                 className="scale-75 origin-left"
               />
             </div>
@@ -348,11 +418,11 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-emerald-400 flex items-center gap-1">
                     <Target className="h-3 w-3" />
-                    {mockData.currentStreak} day streak
+                    {displayData.currentStreak} day streak
                   </span>
                 </div>
               </div>
-              <HeatMap data={mockData.deepWorkData} />
+              <HeatMap data={deepWorkData} />
               
               <div className="mt-6 flex gap-3">
                 <button className="glass-button-primary flex items-center gap-2">
@@ -370,7 +440,7 @@ export default function DashboardPage() {
             <div className="glass-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-medium">Daily Actions</h2>
-                <div className="text-xs text-mario-yellow font-bold">25/35 coins</div>
+                <div className="text-xs text-mario-yellow font-bold">{displayData.dailyCoinsEarned}/35 coins</div>
               </div>
               
               <div className="space-y-3">
@@ -432,9 +502,14 @@ export default function DashboardPage() {
               <div className="mt-4 p-3 bg-mario-yellow/10 rounded-lg border border-mario-yellow/20">
                 <div className="text-xs font-medium text-mario-yellow">Coin Progress</div>
                 <div className="w-full bg-white/10 rounded-full h-2 mt-1">
-                  <div className="bg-mario-yellow rounded-full h-2" style={{ width: '71%' }}></div>
+                  <div 
+                    className="bg-mario-yellow rounded-full h-2" 
+                    style={{ width: `${Math.min((displayData.dailyCoinsEarned / 35) * 100, 100)}%` }}
+                  ></div>
                 </div>
-                <div className="text-xs text-white/60 mt-1">10 coins to next reward</div>
+                <div className="text-xs text-white/60 mt-1">
+                  {35 - displayData.dailyCoinsEarned > 0 ? `${35 - displayData.dailyCoinsEarned} coins to max daily` : 'Daily max reached!'}
+                </div>
               </div>
             </div>
           </div>
@@ -453,35 +528,43 @@ export default function DashboardPage() {
               </div>
               
               <div className="p-4 space-y-3">
-                {mockData.recentProjects.slice(0, 3).map((project) => (
-                  <div key={project.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <Rocket className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium text-sm">{project.title}</div>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                          project.status === 'live' 
-                            ? 'bg-green-500/20 text-green-300' 
-                            : 'bg-yellow-500/20 text-yellow-300'
-                        }`}>
-                          {project.status}
-                        </span>
+                {displayData.projects && displayData.projects.length > 0 ? (
+                  displayData.projects.slice(0, 3).map((project: any) => (
+                    <div key={project.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <Rocket className="w-5 h-5" />
                       </div>
-                      <div className="text-xs text-white/60">
-                        ${project.revenue.toLocaleString()} • {project.growth}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-sm">{project.title}</div>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                            project.status === 'live' 
+                              ? 'bg-green-500/20 text-green-300' 
+                              : 'bg-yellow-500/20 text-yellow-300'
+                          }`}>
+                            {project.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-white/60">
+                          ${project.revenue.toLocaleString()}
+                        </div>
                       </div>
+                      <MoreHorizontal className="h-4 w-4 text-white/40" />
                     </div>
-                    <MoreHorizontal className="h-4 w-4 text-white/40" />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-white/60">
+                    <Rocket className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No projects yet</p>
+                    <p className="text-xs">Create your first project to start tracking revenue!</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
             {/* X Feed */}
             <div className="lg:col-span-2">
-              <XFeed userId="demo-user" limit={5} />
+              <XFeed userId={user?.id || "demo-user"} limit={5} />
             </div>
           </div>
         </section>

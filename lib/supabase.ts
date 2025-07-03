@@ -20,7 +20,7 @@ export const signInWithTwitter = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'twitter',
     options: {
-      redirectTo: `${window.location.origin}/dashboard`
+      redirectTo: `${window.location.origin}/auth/callback`
     }
   })
   return { data, error }
@@ -39,6 +39,299 @@ export const getUser = async () => {
 export const getSession = async () => {
   const { data: { session }, error } = await supabase.auth.getSession()
   return { session, error }
+}
+
+// User Profile Data Functions
+export const getUserProfile = async (userId: string) => {
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+
+  return { profile, error }
+}
+
+export const getUserProjects = async (userId: string) => {
+  const { data: projects, error } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  return { projects, error }
+}
+
+export const getUserDailyActions = async (userId: string, date?: string) => {
+  const targetDate = date || new Date().toISOString().split('T')[0]
+  
+  const { data: actions, error } = await supabase
+    .from('daily_actions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('date', targetDate)
+
+  return { actions, error }
+}
+
+export const getUserDeepWorkSessions = async (userId: string, limit = 30) => {
+  const { data: sessions, error } = await supabase
+    .from('deep_work_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(limit)
+
+  return { sessions, error }
+}
+
+export const calculateUserStats = async (userId: string) => {
+  try {
+    // Get profile
+    const { profile } = await getUserProfile(userId)
+    
+    // Get projects and calculate total revenue
+    const { projects } = await getUserProjects(userId)
+    const totalEarnings = projects?.reduce((sum, project) => sum + (project.revenue || 0), 0) || 0
+    
+    // Get current level based on earnings
+    const level = getLevelFromEarnings(totalEarnings)
+    
+    // Get daily actions for streak calculation
+    const { data: recentActions } = await supabase
+      .from('daily_actions')
+      .select('date, completed')
+      .eq('user_id', userId)
+      .eq('completed', true)
+      .order('date', { ascending: false })
+      .limit(365)
+    
+    // Calculate current streak
+    let currentStreak = 0
+    if (recentActions && recentActions.length > 0) {
+      const today = new Date().toISOString().split('T')[0]
+      const sortedDates = Array.from(new Set(recentActions.map(a => a.date))).sort().reverse()
+      
+      for (let i = 0; i < sortedDates.length; i++) {
+        const date = sortedDates[i]
+        const expectedDate = new Date()
+        expectedDate.setDate(expectedDate.getDate() - i)
+        const expected = expectedDate.toISOString().split('T')[0]
+        
+        if (date === expected) {
+          currentStreak++
+        } else {
+          break
+        }
+      }
+    }
+    
+    // Calculate longest streak
+    let longestStreak = 0
+    let tempStreak = 0
+    if (recentActions && recentActions.length > 0) {
+      const dates = Array.from(new Set(recentActions.map(a => a.date))).sort()
+      for (let i = 0; i < dates.length; i++) {
+        if (i === 0) {
+          tempStreak = 1
+        } else {
+          const prevDate = new Date(dates[i - 1])
+          const currDate = new Date(dates[i])
+          const diffTime = currDate.getTime() - prevDate.getTime()
+          const diffDays = diffTime / (1000 * 60 * 60 * 24)
+          
+          if (diffDays === 1) {
+            tempStreak++
+          } else {
+            longestStreak = Math.max(longestStreak, tempStreak)
+            tempStreak = 1
+          }
+        }
+      }
+      longestStreak = Math.max(longestStreak, tempStreak)
+    }
+    
+    // Calculate daily coins earned today
+    const today = new Date().toISOString().split('T')[0]
+    const { data: todayActions } = await supabase
+      .from('daily_actions')
+      .select('coins_earned, completed')
+      .eq('user_id', userId)
+      .eq('date', today)
+    
+    const dailyCoinsEarned = todayActions?.filter(a => a.completed).reduce((sum, a) => sum + (a.coins_earned || 0), 0) || 0
+    
+    return {
+      profile,
+      totalEarnings,
+      level,
+      currentStreak,
+      longestStreak,
+      activeProjects: projects?.filter(p => p.status === 'live').length || 0,
+      totalProjects: projects?.length || 0,
+      dailyCoinsEarned,
+      projects
+    }
+  } catch (error) {
+    console.error('Error calculating user stats:', error)
+    return null
+  }
+}
+
+// Project Management Functions
+export const createProject = async (userId: string, projectData: {
+  title: string
+  description: string
+  image_url?: string
+  revenue: number
+  status: 'development' | 'live' | 'paused'
+}) => {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([{
+      user_id: userId,
+      ...projectData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }])
+    .select()
+    .single()
+
+  // If this is the user's first earning, trigger achievement
+  if (!error && projectData.revenue > 0) {
+    await checkAndAwardAchievements(userId, 'first_earning')
+  }
+
+  return { data, error }
+}
+
+export const updateProject = async (projectId: string, updates: Partial<{
+  title: string
+  description: string
+  image_url: string
+  revenue: number
+  status: 'development' | 'live' | 'paused'
+}>) => {
+  const { data, error } = await supabase
+    .from('projects')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', projectId)
+    .select()
+    .single()
+
+  return { data, error }
+}
+
+// Daily Action Logging Functions
+export const logDailyAction = async (userId: string, actionType: 'deep_work' | 'x_post' | 'push' | 'manual_earning', data: {
+  description?: string
+  duration?: number
+  amount?: number
+  date?: string
+}) => {
+  const targetDate = data.date || new Date().toISOString().split('T')[0]
+  
+  // Check if action already logged for this date
+  const { data: existing } = await supabase
+    .from('daily_actions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('action_type', actionType)
+    .eq('date', targetDate)
+    .single()
+
+  if (existing) {
+    return { data: existing, error: { message: 'Action already logged for this date' } }
+  }
+
+  // Get coin value for action
+  const coinValues = {
+    deep_work: 10,
+    x_post: 5,
+    push: 15,
+    manual_earning: 15
+  }
+
+  const { data: action, error } = await supabase
+    .from('daily_actions')
+    .insert([{
+      user_id: userId,
+      date: targetDate,
+      action_type: actionType,
+      completed: true,
+      coins_earned: coinValues[actionType],
+      description: data.description,
+      duration: data.duration,
+      amount: data.amount,
+      created_at: new Date().toISOString()
+    }])
+    .select()
+    .single()
+
+  if (!error) {
+    // Update profile total coins
+    const { data: currentProfile } = await supabase
+      .from('profiles')
+      .select('total_coins')
+      .eq('id', userId)
+      .single()
+
+    if (currentProfile) {
+      await supabase
+        .from('profiles')
+        .update({
+          total_coins: (currentProfile.total_coins || 0) + coinValues[actionType],
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+    }
+
+    // Check for achievements
+    await checkAndAwardAchievements(userId, actionType)
+  }
+
+  return { data: action, error }
+}
+
+// Achievement System
+export const checkAndAwardAchievements = async (userId: string, trigger: string) => {
+  const { profile } = await getUserProfile(userId)
+  if (!profile) return
+
+  const currentAchievements = profile.achievements || []
+  const newAchievements = [...currentAchievements]
+
+  // Check for First Coin achievement
+  if (trigger === 'first_earning' && !currentAchievements.includes('first_coin')) {
+    newAchievements.push('first_coin')
+  }
+
+  // Check for level-based achievements
+  const userStats = await calculateUserStats(userId)
+  if (userStats) {
+    if (userStats.totalEarnings >= 10000 && !currentAchievements.includes('star_power')) {
+      newAchievements.push('star_power')
+    }
+    if (userStats.totalEarnings >= 100000 && !currentAchievements.includes('castle_master')) {
+      newAchievements.push('castle_master')
+    }
+  }
+
+  // Update profile if new achievements
+  if (newAchievements.length > currentAchievements.length) {
+    await supabase
+      .from('profiles')
+      .update({
+        achievements: newAchievements,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+  }
+
+  return newAchievements.filter(a => !currentAchievements.includes(a))
 }
 
 // Level system configuration

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Coins, Target, Zap, Users, TrendingUp, Calendar, Trophy, Github } from 'lucide-react'
+import { Coins, Target, Zap, Users, TrendingUp, Calendar, Trophy, Github, Twitter, X } from 'lucide-react'
 import MarioAnimations from '@/components/ui/MarioAnimations'
 
 export default function HomePage() {
@@ -47,27 +47,27 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Deep Work Power-Ups */}
             <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
-              <Calendar className="absolute top-4 left-4 w-8 h-8 text-mario-green" />
+              <Calendar className="absolute top-4 left-4 w-8 h-8 text-green-400" />
               <div className="pt-8">
                 <h3 className="text-xl font-bold mb-2 text-left">🍄 Deep Work Power-Ups</h3>
                 <p className="text-white/60 text-left text-sm mb-4">
                   Earn mushroom power-ups for 2+ hour deep work sessions. Build streaks to unlock fire flowers!
                 </p>
                 
-                {/* Progress indicators */}
+                {/* GitHub-style contribution chart */}
                 <div className="grid grid-cols-7 gap-1 mb-3">
-                  {[...Array(7)].map((_, i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      {[...Array(4)].map((_, j) => (
-                        <div key={j} className={`w-3 h-3 rounded-sm ${i < 5 ? 'bg-mario-green' : 'bg-slate-700'}`}></div>
-                      ))}
-                    </div>
+                  {[...Array(14)].map((_, i) => (
+                    <div key={i} className={`w-4 h-4 rounded-sm ${
+                      i < 2 ? 'bg-slate-700' : 
+                      i < 5 ? 'bg-green-400/30' : 
+                      'bg-green-400'
+                    }`}></div>
                   ))}
                 </div>
                 
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-white/60">Current streak: 12 days</span>
-                  <span className="text-mario-green">🍄 +10 coins/day</span>
+                  <span className="text-green-400">🪙 +10 coins/day</span>
                 </div>
               </div>
             </div>
@@ -85,11 +85,11 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded">
                     <span className="text-sm">🏰 SaaS Castle</span>
-                    <span className="text-mario-green text-sm">$1,200/mo 🍄 +15</span>
+                    <span className="text-green-400 text-sm">$1,200</span>
                   </div>
                   <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded">
                     <span className="text-sm">🗼 Course Tower</span>
-                    <span className="text-mario-green text-sm">$800/mo 🍄 +10</span>
+                    <span className="text-green-400 text-sm">$800</span>
                   </div>
                 </div>
               </div>
@@ -97,7 +97,7 @@ export default function HomePage() {
 
             {/* Star Power Posts */}
             <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
-              <Users className="absolute top-4 left-4 w-8 h-8 text-mario-cyan" />
+              <X className="absolute top-4 left-4 w-8 h-8 text-mario-cyan" />
               <div className="pt-8">
                 <h3 className="text-xl font-bold mb-2 text-left">⭐ Star Power Posts</h3>
                 <p className="text-white/60 text-left text-sm mb-4">
@@ -107,10 +107,10 @@ export default function HomePage() {
                 <div className="mb-4">
                   <div className="flex justify-between items-center text-sm mb-2">
                     <span className="text-white/60">Posting streak</span>
-                    <span className="text-mario-cyan">8 days ⭐ +5</span>
+                    <span className="text-mario-cyan">8 days 🪙 <span className="text-yellow-400">+5</span></span>
                   </div>
                   <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div className="bg-mario-cyan h-2 rounded-full" style={{ width: '80%' }}></div>
+                    <div className="bg-cyan-400 h-2 rounded-full" style={{ width: '60%' }}></div>
                   </div>
                 </div>
               </div>
@@ -118,9 +118,9 @@ export default function HomePage() {
 
             {/* Level Progression */}
             <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
-              <TrendingUp className="absolute top-4 left-4 w-8 h-8 text-mario-green" />
+              <TrendingUp className="absolute top-4 left-4 w-8 h-8 text-green-400" />
               <div className="pt-8">
-                <h3 className="text-xl font-bold mb-2 text-left">🔥 Level Progression</h3>
+                <h3 className="text-xl font-bold mb-2 text-left">🎯 Level Progression</h3>
                 <p className="text-white/60 text-left text-sm mb-4">
                   Each revenue milestone unlocks a new level with special rewards and recognition!
                 </p>
@@ -128,8 +128,8 @@ export default function HomePage() {
                 {/* Level indicator */}
                 <div className="text-center mb-4">
                   <div className="text-3xl mb-2">🔥</div>
-                  <div className="text-lg font-bold text-mario-orange">Fire Flower Master</div>
-                  <div className="text-2xl font-bold text-mario-green">$1,200</div>
+                  <div className="text-lg font-bold text-red-400">Fire Flower Master</div>
+                  <div className="text-2xl font-bold text-green-400">$1,200</div>
                 </div>
                 
                 <div className="mario-progress-bar h-3 mb-2">
@@ -150,10 +150,10 @@ export default function HomePage() {
                 
                 {/* Achievement badges */}
                 <div className="grid grid-cols-4 gap-2 mb-4">
-                  <div className="w-12 h-12 bg-mario-green rounded flex items-center justify-center">🪙</div>
-                  <div className="w-12 h-12 bg-mario-red rounded flex items-center justify-center">🍄</div>
-                  <div className="w-12 h-12 bg-mario-orange rounded flex items-center justify-center">🔥</div>
-                  <div className="w-12 h-12 bg-mario-yellow rounded flex items-center justify-center">⭐</div>
+                  <div className="w-12 h-12 bg-green-400 rounded flex items-center justify-center">🪙</div>
+                  <div className="w-12 h-12 bg-red-400 rounded flex items-center justify-center">🍄</div>
+                  <div className="w-12 h-12 bg-orange-400 rounded flex items-center justify-center">🔥</div>
+                  <div className="w-12 h-12 bg-yellow-400 rounded flex items-center justify-center">⭐</div>
                   <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">🦅</div>
                   <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">🌟</div>
                   <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">👑</div>
@@ -177,24 +177,24 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2">
-                      <span className="text-mario-yellow">🔥</span>
+                      <span className="text-green-400">🔥</span>
                       <span>@builderking</span>
                     </span>
-                    <span className="text-mario-yellow">Level 8 🏰</span>
+                    <span className="text-green-400">Level 8 🏰</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2">
-                      <span className="text-mario-purple">🔥</span>
+                      <span className="text-purple-400">🔥</span>
                       <span>@codequeen</span>
                     </span>
-                    <span className="text-mario-purple">Level 7 👑</span>
+                    <span className="text-purple-400">Level 7 👑</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2">
-                      <span className="text-mario-cyan">🔥</span>
+                      <span className="text-blue-400">🔥</span>
                       <span>@startupninja</span>
                     </span>
-                    <span className="text-mario-cyan">Level 6 ⭐</span>
+                    <span className="text-blue-400">Level 6 ⭐</span>
                   </div>
                 </div>
               </div>
@@ -260,6 +260,20 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-8 px-4 border-t border-white/10 bg-slate-900/20 backdrop-blur-sm main-content">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex justify-center gap-6 text-sm">
+            <Link href="/privacy" className="text-white/60 hover:text-white transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="text-white/60 hover:text-white transition-colors">
+              Terms of Service
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 } 
