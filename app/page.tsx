@@ -1,23 +1,20 @@
 import Link from 'next/link'
-import { Coins, Target, Zap, Users, TrendingUp, Calendar } from 'lucide-react'
+import { Coins, Target, Zap, Users, TrendingUp, Calendar, Trophy, Github } from 'lucide-react'
+import MarioAnimations from '@/components/ui/MarioAnimations'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      {/* Mario-inspired animations */}
+      <MarioAnimations />
       {/* Hero Section */}
-      <section className="relative py-20 px-4 text-center">
+      <section className="relative py-20 px-4 text-center main-content">
         <div className="max-w-6xl mx-auto">
           {/* Modern hero title */}
           <div className="flex items-center justify-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center mr-4 power-up-glow">
-              <span className="text-3xl">🍄</span>
-            </div>
-            <h1 className="text-6xl font-bold text-white tracking-tight">
-              100K Challenge
+            <h1 className="text-5xl md:text-7xl lg:text-9xl font-bold text-white tracking-tight">
+              $100K Challenge
             </h1>
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center ml-4 power-up-glow">
-              <span className="text-3xl">🚀</span>
-            </div>
           </div>
           
           <p className="text-2xl text-white/80 mb-8 max-w-3xl mx-auto font-medium">
@@ -38,90 +35,176 @@ export default function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 main-content">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center text-white mb-16">
-            Power-Up Your Builder Journey
+          <h2 className="text-4xl font-bold text-center text-white mb-4">
+            🎮 Power-Up Your Builder Journey
           </h2>
+          <p className="text-xl text-white/60 text-center mb-16 max-w-2xl mx-auto">
+            Gamified tracking, achievements, and community to keep you motivated
+          </p>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Deep Work Tracking */}
-            <div className="glass-card p-8 text-center hover:bg-slate-900/60 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 power-up-glow">
-                <Target className="w-10 h-10 text-white" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Deep Work Power-Ups */}
+            <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
+              <Calendar className="absolute top-4 left-4 w-8 h-8 text-mario-green" />
+              <div className="pt-8">
+                <h3 className="text-xl font-bold mb-2 text-left">🍄 Deep Work Power-Ups</h3>
+                <p className="text-white/60 text-left text-sm mb-4">
+                  Earn mushroom power-ups for 2+ hour deep work sessions. Build streaks to unlock fire flowers!
+                </p>
+                
+                {/* Progress indicators */}
+                <div className="grid grid-cols-7 gap-1 mb-3">
+                  {[...Array(7)].map((_, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      {[...Array(4)].map((_, j) => (
+                        <div key={j} className={`w-3 h-3 rounded-sm ${i < 5 ? 'bg-mario-green' : 'bg-slate-700'}`}></div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-white/60">Current streak: 12 days</span>
+                  <span className="text-mario-green">🍄 +10 coins/day</span>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Deep Work Streaks</h3>
-              <p className="text-white/60">
-                Track your daily 2+ hour deep work sessions with a GitHub-style heatmap. 
-                Build unstoppable momentum!
-              </p>
             </div>
 
-            {/* Social Proof */}
-            <div className="glass-card p-8 text-center hover:bg-slate-900/60 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 power-up-glow">
-                <Users className="w-10 h-10 text-white" />
+            {/* Project Castles */}
+            <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
+              <Zap className="absolute top-4 left-4 w-8 h-8 text-mario-blue" />
+              <div className="pt-8">
+                <h3 className="text-xl font-bold mb-2 text-left">🏰 Project Castles</h3>
+                <p className="text-white/60 text-left text-sm mb-4">
+                  Build your empire! Each profitable project is a castle in your kingdom.
+                </p>
+                
+                {/* Project items */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded">
+                    <span className="text-sm">🏰 SaaS Castle</span>
+                    <span className="text-mario-green text-sm">$1,200/mo 🍄 +15</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded">
+                    <span className="text-sm">🗼 Course Tower</span>
+                    <span className="text-mario-green text-sm">$800/mo 🍄 +10</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Social Building</h3>
-              <p className="text-white/60">
-                Connect your X account, track daily posts, and display your feed. 
-                Build in public like a pro!
-              </p>
             </div>
 
-            {/* Revenue Tracking */}
-            <div className="glass-card p-8 text-center hover:bg-slate-900/60 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 power-up-glow">
-                <TrendingUp className="w-10 h-10 text-white" />
+            {/* Star Power Posts */}
+            <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
+              <Users className="absolute top-4 left-4 w-8 h-8 text-mario-cyan" />
+              <div className="pt-8">
+                <h3 className="text-xl font-bold mb-2 text-left">⭐ Star Power Posts</h3>
+                <p className="text-white/60 text-left text-sm mb-4">
+                  Daily X posts give you star power! Share your journey and inspire others.
+                </p>
+                
+                <div className="mb-4">
+                  <div className="flex justify-between items-center text-sm mb-2">
+                    <span className="text-white/60">Posting streak</span>
+                    <span className="text-mario-cyan">8 days ⭐ +5</span>
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-2">
+                    <div className="bg-mario-cyan h-2 rounded-full" style={{ width: '80%' }}></div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Revenue Battery</h3>
-              <p className="text-white/60">
-                Stripe integration shows your progress to $100k with a Mario-style 
-                power meter. Watch it grow!
-              </p>
             </div>
 
-            {/* Project Showcase */}
-            <div className="glass-card p-8 text-center hover:bg-slate-900/60 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 power-up-glow">
-                <Zap className="w-10 h-10 text-white" />
+            {/* Level Progression */}
+            <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
+              <TrendingUp className="absolute top-4 left-4 w-8 h-8 text-mario-green" />
+              <div className="pt-8">
+                <h3 className="text-xl font-bold mb-2 text-left">🔥 Level Progression</h3>
+                <p className="text-white/60 text-left text-sm mb-4">
+                  Each revenue milestone unlocks a new level with special rewards and recognition!
+                </p>
+                
+                {/* Level indicator */}
+                <div className="text-center mb-4">
+                  <div className="text-3xl mb-2">🔥</div>
+                  <div className="text-lg font-bold text-mario-orange">Fire Flower Master</div>
+                  <div className="text-2xl font-bold text-mario-green">$1,200</div>
+                </div>
+                
+                <div className="mario-progress-bar h-3 mb-2">
+                  <div className="mario-progress-fill" style={{ width: '24%' }}></div>
+                </div>
+                <div className="text-sm text-white/60 text-center">Next: ⭐ Star Power at $5k</div>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Project Castle</h3>
-              <p className="text-white/60">
-                Showcase your projects with screenshots and descriptions. 
-                Build your empire one project at a time!
-              </p>
             </div>
 
-            {/* Gamification */}
-            <div className="glass-card p-8 text-center hover:bg-slate-900/60 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 power-up-glow">
-                <Calendar className="w-10 h-10 text-white" />
+            {/* Achievement Hunter */}
+            <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
+              <Users className="absolute top-4 left-4 w-8 h-8 text-mario-purple" />
+              <div className="pt-8">
+                <h3 className="text-xl font-bold mb-2 text-left">🏆 Achievement Hunter</h3>
+                <p className="text-white/60 text-left text-sm mb-4">
+                  Unlock epic achievements as you hit milestones. Show off your badges to the community!
+                </p>
+                
+                {/* Achievement badges */}
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  <div className="w-12 h-12 bg-mario-green rounded flex items-center justify-center">🪙</div>
+                  <div className="w-12 h-12 bg-mario-red rounded flex items-center justify-center">🍄</div>
+                  <div className="w-12 h-12 bg-mario-orange rounded flex items-center justify-center">🔥</div>
+                  <div className="w-12 h-12 bg-mario-yellow rounded flex items-center justify-center">⭐</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">🦅</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">🌟</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">👑</div>
+                  <div className="w-12 h-12 bg-slate-600 rounded flex items-center justify-center filter grayscale opacity-50">🏰</div>
+                </div>
+                
+                <div className="text-sm text-white/60 text-center">4/8 achievements unlocked</div>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Level Up System</h3>
-              <p className="text-white/60">
-                Earn XP, level up, and unlock achievements. Making money has 
-                never been this fun!
-              </p>
             </div>
 
-            {/* Public Profile */}
-            <div className="glass-card p-8 text-center hover:bg-slate-900/60 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 power-up-glow">
-                <Users className="w-10 h-10 text-white" />
+            {/* Builder Leaderboards */}
+            <div className="glass-card p-6 hover:bg-slate-900/60 transition-all duration-300 hover:mario-bounce relative">
+              <Github className="absolute top-4 left-4 w-8 h-8 text-mario-orange" />
+              <div className="pt-8">
+                <h3 className="text-xl font-bold mb-2 text-left">🌎 Builder Leaderboards</h3>
+                <p className="text-white/60 text-left text-sm mb-4">
+                  Compete with fellow builders! See who's climbing the levels fastest and get inspired.
+                </p>
+                
+                {/* Leaderboard */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <span className="text-mario-yellow">🔥</span>
+                      <span>@builderking</span>
+                    </span>
+                    <span className="text-mario-yellow">Level 8 🏰</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <span className="text-mario-purple">🔥</span>
+                      <span>@codequeen</span>
+                    </span>
+                    <span className="text-mario-purple">Level 7 👑</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <span className="text-mario-cyan">🔥</span>
+                      <span>@startupninja</span>
+                    </span>
+                    <span className="text-mario-cyan">Level 6 ⭐</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold mb-4">Builder Profile</h3>
-              <p className="text-white/60">
-                Get your own public profile URL to share your journey. 
-                Inspire others and get discovered!
-              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* How It Works */}
-      <section className="py-20 px-4 bg-slate-900/20 backdrop-blur-sm">
+      <section className="py-20 px-4 bg-slate-900/20 backdrop-blur-sm main-content">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-16">
             How to Play
@@ -164,13 +247,13 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 text-center">
+      <section className="py-20 px-4 text-center main-content">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-4xl font-bold text-white mb-8">
             Ready to Break Free? 🚀
           </h2>
           <p className="text-xl text-white/80 mb-8">
-            Join hundreds of builders already crushing their 100k goals
+            Join hundreds of builders working to leave their 9-5 and already crushing their $100k goals.
           </p>
           <Link href="/dashboard" className="mario-button text-2xl px-12 py-6 inline-block">
             🍄 Start Your Journey

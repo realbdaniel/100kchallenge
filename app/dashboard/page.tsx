@@ -1,7 +1,8 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import { redirect } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { supabase, signInWithTwitter, signOut } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { HeatMap } from '@/components/ui/HeatMap'
 import { LevelBadge } from '@/components/ui/LevelBadge'
@@ -13,7 +14,6 @@ import {
   Activity, Timer, CheckCircle, ArrowUp, ExternalLink, MoreHorizontal, X
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
 
 // Mock data - in real app, this would come from your API
 const mockData = {
@@ -94,9 +94,26 @@ const mockData = {
 }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const [demoMode, setDemoMode] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
   
   // Demo mode for testing without full auth setup
   const mockUser = {
@@ -105,7 +122,7 @@ export default function DashboardPage() {
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face'
   }
   
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
@@ -114,7 +131,7 @@ export default function DashboardPage() {
   }
   
   // Show demo mode option if not authenticated
-  if (!session && !demoMode) {
+  if (!user && !demoMode) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="glass-card p-8 text-center max-w-md">
@@ -132,9 +149,12 @@ export default function DashboardPage() {
               🎮 Try Demo Mode
             </button>
             
-            <Link href="/api/auth/signin?callbackUrl=/dashboard" className="w-full mario-button-secondary inline-block text-center">
+            <button 
+              onClick={() => signInWithTwitter()}
+              className="w-full mario-button-secondary"
+            >
               𝕏 Sign In with X
-            </Link>
+            </button>
           </div>
           
           <div className="mt-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
@@ -147,8 +167,8 @@ export default function DashboardPage() {
     )
   }
 
-  const currentUser = session?.user || mockUser
-  const isDemoMode = !session && demoMode
+  const currentUser = user || mockUser
+  const isDemoMode = !user && demoMode
 
   const navigationItems = [
     { icon: LayoutDashboard, label: 'Studio', href: '/dashboard', active: true },
