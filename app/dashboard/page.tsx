@@ -285,6 +285,52 @@ export default function DashboardPage() {
     email: 'demo@100kchallenge.com',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face'
   }
+
+  // Manual profile creation function to fix database issues
+  const createProfileManually = async () => {
+    if (!user) return
+    
+    console.log('Manually creating profile for user:', user.id)
+    console.log('User object:', user)
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: user.user_metadata?.name || user.user_metadata?.full_name || 'Builder',
+          email: user.email,
+          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+          twitter_username: user.user_metadata?.user_name || user.user_metadata?.preferred_username,
+          twitter_id: user.user_metadata?.provider_id,
+          username: user.user_metadata?.user_name || user.user_metadata?.preferred_username || user.email?.split('@')[0] || 'builder',
+          bio: user.user_metadata?.description || '',
+          total_earnings: 0,
+          level: 1,
+          xp: 0,
+          total_coins: 0,
+          current_streak: 0,
+          longest_streak: 0,
+          achievements: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+
+      if (error) {
+        console.error('Manual profile creation error:', error)
+        alert(`Profile creation failed: ${error.message}`)
+      } else {
+        console.log('Profile created successfully:', data)
+        alert('Profile created! Try creating a project now.')
+        // Refresh the page to reload user data
+        window.location.reload()
+      }
+    } catch (err) {
+      console.error('Manual profile creation failed:', err)
+      alert('Profile creation failed. Check console for details.')
+    }
+  }
   
   if (loading) {
     return (
@@ -466,6 +512,25 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+          
+          {/* Debug Button for Profile Creation */}
+          {user && (
+            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-red-300">Database Debug</h3>
+                  <p className="text-xs text-red-200">If project creation fails, click to fix your profile</p>
+                </div>
+                <button
+                  onClick={createProfileManually}
+                  className="px-3 py-1.5 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Fix Profile
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Revenue */}

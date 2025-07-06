@@ -27,34 +27,40 @@ export default function AuthCallback() {
           console.log('Creating profile for user:', user.id)
           console.log('User metadata:', user.user_metadata)
           
-          const { error: profileError } = await supabase
+          const profileData = {
+            id: user.id,
+            name: user.user_metadata.name || user.user_metadata.full_name || 'Builder',
+            email: user.email,
+            avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture,
+            twitter_username: user.user_metadata.user_name || user.user_metadata.preferred_username,
+            twitter_id: user.user_metadata.provider_id,
+            username: user.user_metadata.user_name || user.user_metadata.preferred_username || user.email?.split('@')[0] || 'builder',
+            bio: user.user_metadata.description || '',
+            total_earnings: 0,
+            level: 1,
+            xp: 0,
+            total_coins: 0,
+            current_streak: 0,
+            longest_streak: 0,
+            achievements: [],
+            updated_at: new Date().toISOString(),
+          }
+          
+          console.log('Profile data to insert:', profileData)
+          
+          const { data: profileResult, error: profileError } = await supabase
             .from('profiles')
-            .upsert({
-              id: user.id,
-              name: user.user_metadata.name || user.user_metadata.full_name || 'Builder',
-              email: user.email,
-              avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture,
-              twitter_username: user.user_metadata.user_name || user.user_metadata.preferred_username,
-              twitter_id: user.user_metadata.provider_id,
-              username: user.user_metadata.user_name || user.user_metadata.preferred_username || user.email?.split('@')[0] || 'builder',
-              bio: user.user_metadata.description || '',
-              total_earnings: 0,
-              level: 1,
-              xp: 0,
-              total_coins: 0,
-              current_streak: 0,
-              longest_streak: 0,
-              achievements: [],
-              updated_at: new Date().toISOString(),
-            })
+            .upsert(profileData)
+            .select()
 
           if (profileError) {
             console.error('Profile creation error:', profileError)
+            console.error('Error details:', JSON.stringify(profileError, null, 2))
             setError(`Profile creation failed: ${profileError.message}`)
             return
           }
 
-          console.log('Profile created successfully')
+          console.log('Profile created successfully:', profileResult)
           // Redirect to dashboard
           router.push('/dashboard')
         } else {
