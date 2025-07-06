@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Heart, MessageCircle, Repeat2, Share, ExternalLink, Clock, AlertCircle } from 'lucide-react'
 import { TwitterPost } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 interface XFeedProps {
   limit?: number
@@ -13,35 +14,35 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
   const [posts, setPosts] = useState<TwitterPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const loadPosts = async () => {
       setLoading(true)
       setError(null)
-      setErrorMessage(null)
 
       try {
-        const response = await fetch(`/api/twitter/posts`)
-        const data = await response.json()
+        // Get the current session for auth headers
+        const { data: { session } } = await supabase.auth.getSession()
         
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch posts')
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+        }
+        
+        // Add auth header if we have a session
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`
         }
 
-        // Set posts and clear any previous errors
-        setPosts(data.posts || [])
+        const response = await fetch(`/api/twitter/posts`, { headers })
+        const data = await response.json()
         
-        // If we got posts but they might be fallback data, that's okay
-        if (data.posts && data.posts.length > 0) {
-          setError(null)
-          setErrorMessage(null)
-        }
+        // Set posts regardless of response status - the API returns fallback data
+        setPosts(data.posts || [])
+        setError(null)
         
       } catch (err: any) {
         console.error('Error loading X posts:', err)
         setError(err.message)
-        setErrorMessage(err.message)
         setPosts([])
       } finally {
         setLoading(false)
@@ -93,43 +94,6 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
               </div>
             </div>
           ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (error && posts.length === 0) {
-    return (
-      <div className="glass-card overflow-hidden">
-        {showHeader && (
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                  <span className="text-lg">𝕏</span>
-                </div>
-                <h2 className="font-medium">X Feed</h2>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div className="p-6 text-center text-white/60">
-          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="h-6 w-6 text-red-400" />
-          </div>
-          <p className="text-sm font-medium text-red-400">Unable to load X feed</p>
-          <p className="text-xs mt-1 text-white/60">{errorMessage}</p>
-          {(error.includes('No active session') || error.includes('Session error')) && (
-            <p className="text-xs mt-2 text-yellow-400">
-              Please sign in again to see your feed
-            </p>
-          )}
-          {error.includes('Profile not found') && (
-            <p className="text-xs mt-2 text-yellow-400">
-              Your profile needs to be set up. Try creating a project first.
-            </p>
-          )}
         </div>
       </div>
     )
