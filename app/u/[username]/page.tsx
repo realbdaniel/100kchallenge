@@ -251,7 +251,7 @@ export default async function UserProfilePage({
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* X Feed */}
           <div className="lg:col-span-1">
-            <XFeed userId={user.id} limit={8} />
+            <XFeed limit={8} />
           </div>
 
           {/* Projects Showcase */}
