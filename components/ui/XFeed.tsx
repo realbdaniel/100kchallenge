@@ -13,25 +13,35 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
   const [posts, setPosts] = useState<TwitterPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const loadPosts = async () => {
       setLoading(true)
       setError(null)
+      setErrorMessage(null)
 
       try {
         const response = await fetch(`/api/twitter/posts`)
+        const data = await response.json()
         
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to fetch posts')
+          throw new Error(data.error || 'Failed to fetch posts')
         }
 
-        const data = await response.json()
+        // Set posts and clear any previous errors
         setPosts(data.posts || [])
+        
+        // If we got posts but they might be fallback data, that's okay
+        if (data.posts && data.posts.length > 0) {
+          setError(null)
+          setErrorMessage(null)
+        }
+        
       } catch (err: any) {
         console.error('Error loading X posts:', err)
         setError(err.message)
+        setErrorMessage(err.message)
         setPosts([])
       } finally {
         setLoading(false)
@@ -88,7 +98,7 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
     )
   }
 
-  if (error) {
+  if (error && posts.length === 0) {
     return (
       <div className="glass-card overflow-hidden">
         {showHeader && (
@@ -109,10 +119,15 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
             <AlertCircle className="h-6 w-6 text-red-400" />
           </div>
           <p className="text-sm font-medium text-red-400">Unable to load X feed</p>
-          <p className="text-xs mt-1 text-white/60">{error}</p>
-          {error.includes('No Twitter username found') && (
+          <p className="text-xs mt-1 text-white/60">{errorMessage}</p>
+          {(error.includes('No active session') || error.includes('Session error')) && (
             <p className="text-xs mt-2 text-yellow-400">
-              Connect your X account in settings to see your feed
+              Please sign in again to see your feed
+            </p>
+          )}
+          {error.includes('Profile not found') && (
+            <p className="text-xs mt-2 text-yellow-400">
+              Your profile needs to be set up. Try creating a project first.
             </p>
           )}
         </div>

@@ -4,39 +4,70 @@ import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
-    // Create Supabase server client
+    // Create Supabase server client with proper cookie handling
+    const cookieStore = cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
-            return cookies().get(name)?.value
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: any) {
+            // No-op for server-side reads
+          },
+          remove(name: string, options: any) {
+            // No-op for server-side reads
           },
         },
       }
     )
 
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication with better error handling
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (sessionError) {
+      console.error('Session error:', sessionError)
+      return NextResponse.json({ 
+        error: 'Session error',
+        message: 'Please try signing in again',
+        posts: [] 
+      }, { status: 401 })
     }
 
+    if (!session?.user) {
+      console.log('No active session found')
+      return NextResponse.json({ 
+        error: 'No active session',
+        message: 'Please sign in to see your X feed',
+        posts: [] 
+      }, { status: 401 })
+    }
+
+    const user = session.user
+
     // Get user's profile to get their Twitter username
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('twitter_username, name, total_earnings, level, current_streak')
       .eq('id', user.id)
       .single()
 
-    if (!profile?.twitter_username) {
+    if (profileError) {
+      console.error('Profile error:', profileError)
       return NextResponse.json({ 
-        error: 'No Twitter username found',
-        message: 'Connect your X/Twitter account to see your feed',
+        error: 'Profile not found',
+        message: 'Unable to load your profile data',
         posts: [] 
       }, { status: 404 })
+    }
+
+    if (!profile?.twitter_username) {
+      console.log('No Twitter username found for user:', user.id)
+      // Generate fallback posts even without Twitter username
+      const fallbackPosts = await generateFallbackPosts(supabase, user.id, 'builder')
+      return NextResponse.json({ posts: fallbackPosts })
     }
 
     const targetUsername = profile.twitter_username
@@ -53,6 +84,8 @@ export async function GET(request: NextRequest) {
 
     // Make real Twitter API calls
     try {
+      console.log('Fetching Twitter data for username:', targetUsername)
+      
       // Get Twitter User ID from username
       const userResponse = await fetch(`https://api.twitter.com/2/users/by/username/${targetUsername}`, {
         headers: {
@@ -62,13 +95,21 @@ export async function GET(request: NextRequest) {
       })
 
       if (!userResponse.ok) {
-        console.error('Failed to fetch Twitter user:', await userResponse.text())
+        const errorText = await userResponse.text()
+        console.error('Failed to fetch Twitter user:', userResponse.status, errorText)
         // Fall back to contextual mock data
         const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
         return NextResponse.json({ posts: fallbackPosts })
       }
 
       const userData = await userResponse.json()
+      
+      if (!userData.data) {
+        console.error('No user data returned from Twitter API')
+        const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
+        return NextResponse.json({ posts: fallbackPosts })
+      }
+
       const twitterUserId = userData.data.id
 
       // Get user's tweets
@@ -80,7 +121,8 @@ export async function GET(request: NextRequest) {
       })
 
       if (!tweetsResponse.ok) {
-        console.error('Failed to fetch tweets:', await tweetsResponse.text())
+        const errorText = await tweetsResponse.text()
+        console.error('Failed to fetch tweets:', tweetsResponse.status, errorText)
         // Fall back to contextual mock data
         const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
         return NextResponse.json({ posts: fallbackPosts })
@@ -106,6 +148,7 @@ export async function GET(request: NextRequest) {
       // Check if user has posted today and automatically log x_post action
       await checkAndLogTodayPost(supabase, user.id, posts)
 
+      console.log(`Successfully fetched ${posts.length} tweets for ${targetUsername}`)
       return NextResponse.json({ posts })
 
     } catch (error) {
@@ -117,7 +160,11 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in Twitter API route:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: 'Something went wrong loading your feed',
+      posts: [] 
+    }, { status: 500 })
   }
 }
 
