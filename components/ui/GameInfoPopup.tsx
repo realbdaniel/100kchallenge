@@ -109,7 +109,7 @@ export function GameInfoPopup() {
                 <div className="space-y-6">
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-bold mb-2">🪙 Coin System</h3>
-                    <p className="text-white/70">Earn up to 35 coins per day by completing tasks</p>
+                    <p className="text-white/70">Earn up to 40 coins per day by completing tasks</p>
                   </div>
 
                   <div className="mb-8">

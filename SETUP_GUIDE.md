@@ -224,7 +224,7 @@ TWITTER_BEARER_TOKEN=your-twitter-bearer-token
 
 ### Gamification System
 - **9 Level System**: Revenue-based progression from Goomba Squasher to World Champion
-- **Coin System**: Daily tasks worth up to 35 coins with milestone rewards
+- **Coin System**: Daily tasks worth up to 40 coins with milestone rewards
 - **Achievement System**: 6 achievements with rarity levels (Common to Legendary)
 - **Daily Actions**: Deep work logging, X post tracking, manual earnings entry
 

@@ -3,15 +3,15 @@
 import { motion } from 'framer-motion'
 import { format, subDays, isSameDay } from 'date-fns'
 
-interface HeatMapProps {
+interface ProgressTrackerProps {
   data: Array<{
     date: Date
-    duration: number // in minutes
+    coins: number // daily coins earned (0-40)
   }>
   className?: string
 }
 
-export function HeatMap({ data, className = '' }: HeatMapProps) {
+export function HeatMap({ data, className = '' }: ProgressTrackerProps) {
   const today = new Date()
   const startDate = subDays(today, 364) // Show 1 year of data
   
@@ -23,28 +23,28 @@ export function HeatMap({ data, className = '' }: HeatMapProps) {
       
       days.push({
         date,
-        duration: dayData?.duration || 0,
-        level: getIntensityLevel(dayData?.duration || 0)
+        coins: dayData?.coins || 0,
+        level: getProgressLevel(dayData?.coins || 0)
       })
     }
     return days
   }
   
-  const getIntensityLevel = (duration: number) => {
-    if (duration === 0) return 0
-    if (duration < 60) return 1      // < 1 hour
-    if (duration < 120) return 2     // 1-2 hours
-    if (duration < 180) return 3     // 2-3 hours
-    return 4                         // 3+ hours (power level!)
+  const getProgressLevel = (coins: number) => {
+    if (coins === 0) return 0
+    if (coins < 10) return 1      // 5-9 coins (light green)
+    if (coins < 20) return 2      // 10-19 coins 
+    if (coins < 30) return 3      // 20-29 coins
+    return 4                      // 30-40 coins (dark green)
   }
   
   const getColorClass = (level: number) => {
     switch (level) {
       case 0: return 'bg-gray-200'
-      case 1: return 'bg-mario-green opacity-30'
-      case 2: return 'bg-mario-green opacity-60'
-      case 3: return 'bg-mario-green opacity-80'
-      case 4: return 'bg-mario-green power-up-glow'
+      case 1: return 'bg-mario-green opacity-25'
+      case 2: return 'bg-mario-green opacity-50'
+      case 3: return 'bg-mario-green opacity-75'
+      case 4: return 'bg-mario-green opacity-100'
       default: return 'bg-gray-200'
     }
   }
@@ -56,13 +56,13 @@ export function HeatMap({ data, className = '' }: HeatMapProps) {
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7))
   }
-  
+
   return (
     <div className={`${className}`}>
       <div className="mb-4">
-        <h3 className="text-lg font-bold pixel-text mb-2">Deep Work Streak 🔥</h3>
+        <h3 className="text-lg font-bold pixel-text mb-2">Daily Progress Tracker ⚡</h3>
         <p className="text-sm text-gray-600">
-          Your daily deep work sessions - aim for 2+ hours to power up!
+          Your daily action streak - complete all tasks to max out at 40 coins!
         </p>
       </div>
       
@@ -75,7 +75,7 @@ export function HeatMap({ data, className = '' }: HeatMapProps) {
                 className={`w-3 h-3 rounded-sm cursor-pointer ${getColorClass(day.level)}`}
                 whileHover={{ scale: 1.2 }}
                 title={`${format(day.date, 'MMM d, yyyy')}: ${
-                  day.duration ? `${Math.floor(day.duration / 60)}h ${day.duration % 60}m` : 'No work logged'
+                  day.coins ? `${day.coins} coins earned` : 'No actions logged'
                 }`}
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -98,6 +98,9 @@ export function HeatMap({ data, className = '' }: HeatMapProps) {
           ))}
         </div>
         <span>More</span>
+        <div className="ml-4 text-xs text-white/60">
+          0 → 5-9 → 10-19 → 20-29 → 30-40 coins
+        </div>
       </div>
     </div>
   )

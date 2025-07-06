@@ -32,15 +32,34 @@ export function ProjectModal({ isOpen, onClose, onSuccess, project, userId }: Pr
     setLoading(true)
     setError(null)
 
+    console.log('Submitting project with userId:', userId)
+    console.log('Form data:', formData)
+
     try {
       let achievements: string[] = []
       
       if (isEditing) {
-        const { error } = await updateProject(project.id, formData)
-        if (error) throw error
+        console.log('Updating project:', project.id)
+        const { data, error } = await updateProject(project.id, formData)
+        if (error) {
+          console.error('Update project error:', error)
+          throw error
+        }
+        console.log('Project updated successfully:', data)
       } else {
-        const { error, newAchievements } = await createProject(userId, formData)
-        if (error) throw error
+        console.log('Creating new project for user:', userId)
+        const { data, error, newAchievements } = await createProject(userId, formData)
+        if (error) {
+          console.error('Create project error:', error)
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          })
+          throw error
+        }
+        console.log('Project created successfully:', data)
         achievements = newAchievements || []
       }
 
@@ -58,6 +77,7 @@ export function ProjectModal({ isOpen, onClose, onSuccess, project, userId }: Pr
         })
       }
     } catch (err: any) {
+      console.error('Project submission error:', err)
       setError(err.message || 'Failed to save project')
     } finally {
       setLoading(false)

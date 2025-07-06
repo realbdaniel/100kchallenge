@@ -24,6 +24,9 @@ export default function AuthCallback() {
           // User is authenticated, create/update profile
           const user = data.session.user
           
+          console.log('Creating profile for user:', user.id)
+          console.log('User metadata:', user.user_metadata)
+          
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert({
@@ -47,8 +50,11 @@ export default function AuthCallback() {
 
           if (profileError) {
             console.error('Profile creation error:', profileError)
+            setError(`Profile creation failed: ${profileError.message}`)
+            return
           }
 
+          console.log('Profile created successfully')
           // Redirect to dashboard
           router.push('/dashboard')
         } else {

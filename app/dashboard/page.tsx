@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, signInWithTwitter, signOut, calculateUserStats, getUserDailyActions, getUserDeepWorkSessions } from '@/lib/supabase'
+import { supabase, signInWithTwitter, signOut, calculateUserStats, getUserDailyActions, getUserDeepWorkSessions, logDailyAction } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { HeatMap } from '@/components/ui/HeatMap'
@@ -10,6 +10,8 @@ import { XFeed } from '@/components/ui/XFeed'
 import { GameInfoPopup } from '@/components/ui/GameInfoPopup'
 import { ProjectModal } from '@/components/ui/ProjectModal'
 import { AchievementToast } from '@/components/ui/AchievementToast'
+import { DailyActions } from '@/components/ui/DailyActions'
+import { PushLogs } from '@/components/ui/PushLogs'
 import { 
   Coins, Target, Calendar, TrendingUp, Zap, Plus, Menu, Bell, HelpCircle,
   LayoutDashboard, Trophy, Rocket, Users, Settings, Crown, Star, DollarSign,
@@ -104,8 +106,13 @@ export default function DashboardPage() {
   const [statsLoading, setStatsLoading] = useState(false)
   const [deepWorkData, setDeepWorkData] = useState<any[]>([])
   const [dailyActions, setDailyActions] = useState<any[]>([])
+  const [pushLogs, setPushLogs] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
+  const [showSessionModal, setShowSessionModal] = useState(false)
+  const [showPushModal, setShowPushModal] = useState(false)
+  const [sessionDescription, setSessionDescription] = useState('')
+  const [pushDescription, setPushDescription] = useState('')
   const [newAchievements, setNewAchievements] = useState<string[]>([])
   const [achievementQueue, setAchievementQueue] = useState<string[]>([])  
 
@@ -122,13 +129,41 @@ export default function DashboardPage() {
       const { actions } = await getUserDailyActions(userId)
       setDailyActions(actions || [])
 
-      // Get deep work sessions for heatmap
-      const { sessions } = await getUserDeepWorkSessions(userId)
-      const formattedSessions = sessions?.map(session => ({
-        date: new Date(session.date),
-        duration: session.duration
-      })) || []
-      setDeepWorkData(formattedSessions)
+      // Get daily actions for progress tracker (last 365 days)
+      const { data: progressData } = await supabase
+        .from('daily_actions')
+        .select('date, coins_earned, completed')
+        .eq('user_id', userId)
+        .eq('completed', true)
+        .gte('date', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('date', { ascending: false })
+      
+      // Group by date and sum coins
+      const progressByDate = progressData?.reduce((acc, action) => {
+        const date = action.date
+        if (!acc[date]) {
+          acc[date] = 0
+        }
+        acc[date] += action.coins_earned || 0
+        return acc
+      }, {} as Record<string, number>) || {}
+      
+      const formattedProgressData = Object.entries(progressByDate).map(([date, coins]) => ({
+        date: new Date(date),
+        coins
+      }))
+      setDeepWorkData(formattedProgressData)
+
+      // Get push logs for activity feed
+      const { data: pushData } = await supabase
+        .from('daily_actions')
+        .select('*')
+        .eq('user_id', userId)
+        .in('action_type', ['push', 'manual_earning'])
+        .eq('completed', true)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      setPushLogs(pushData || [])
 
       setError(null)
     } catch (err) {
@@ -164,6 +199,7 @@ export default function DashboardPage() {
         setUserStats(null)
         setDailyActions([])
         setDeepWorkData([])
+        setPushLogs([])
       }
     })
 
@@ -193,6 +229,54 @@ export default function DashboardPage() {
 
   const dismissAchievement = (achievementId: string) => {
     setAchievementQueue(prev => prev.filter(id => id !== achievementId))
+  }
+
+  // Handler for logging sessions
+  const handleSessionSubmit = async (duration: number) => {
+    if (!user?.id) return
+    
+    try {
+      const { error } = await logDailyAction(user.id, 'deep_work', {
+        description: sessionDescription.trim() || undefined,
+        duration: duration * 60, // Convert to minutes
+        date: new Date().toISOString().split('T')[0]
+      })
+      
+      if (error) {
+        console.error('Error logging session:', error)
+      } else {
+        // Refresh user data
+        fetchUserData(user.id)
+        setShowSessionModal(false)
+        setSessionDescription('')
+      }
+    } catch (error) {
+      console.error('Error logging session:', error)
+    }
+  }
+
+  // Handler for logging pushes
+  const handlePushSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user?.id || !pushDescription.trim()) return
+    
+    try {
+      const { error } = await logDailyAction(user.id, 'push', {
+        description: pushDescription.trim(),
+        date: new Date().toISOString().split('T')[0]
+      })
+      
+      if (error) {
+        console.error('Error logging push:', error)
+      } else {
+        // Refresh user data
+        fetchUserData(user.id)
+        setShowPushModal(false)
+        setPushDescription('')
+      }
+    } catch (error) {
+      console.error('Error logging push:', error)
+    }
   }
   
   // Demo mode for testing without full auth setup
@@ -444,10 +528,10 @@ export default function DashboardPage() {
 
           {/* Main Grid */}
           <div className="grid lg:grid-cols-3 gap-6">
-            {/* Deep Work Heatmap */}
+            {/* Progress Tracker */}
             <div className="lg:col-span-2 glass-card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-medium">Deep Work Journey</h2>
+                <h2 className="font-medium">Progress Tracker</h2>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-emerald-400 flex items-center gap-1">
                     <Target className="h-3 w-3" />
@@ -458,93 +542,45 @@ export default function DashboardPage() {
               <HeatMap data={deepWorkData} />
               
               <div className="mt-6 flex gap-3">
-                <button className="glass-button-primary flex items-center gap-2">
+                <button 
+                  onClick={() => setShowSessionModal(true)}
+                  disabled={dailyActions.some(action => action.action_type === 'deep_work' && action.completed)}
+                  className={`glass-button-primary flex items-center gap-2 ${
+                    dailyActions.some(action => action.action_type === 'deep_work' && action.completed)
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : ''
+                  }`}
+                >
                   <Timer className="w-4 h-4" />
-                  Log Session
+                  {dailyActions.some(action => action.action_type === 'deep_work' && action.completed) 
+                    ? 'Session Logged' 
+                    : 'Log Session'
+                  }
                 </button>
-                <button className="glass-button flex items-center gap-2">
+                <button 
+                  onClick={() => setShowPushModal(true)}
+                  disabled={dailyActions.some(action => action.action_type === 'push' && action.completed)}
+                  className={`glass-button flex items-center gap-2 ${
+                    dailyActions.some(action => action.action_type === 'push' && action.completed)
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : ''
+                  }`}
+                >
                   <Activity className="w-4 h-4" />
-                  View Analytics
+                  {dailyActions.some(action => action.action_type === 'push' && action.completed) 
+                    ? 'Push Logged' 
+                    : 'Log Push'
+                  }
                 </button>
               </div>
             </div>
 
             {/* Daily Actions */}
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-medium">Daily Actions</h2>
-                <div className="text-xs text-mario-yellow font-bold">{displayData.dailyCoinsEarned}/35 coins</div>
-              </div>
-              
-              <div className="space-y-3">
-                {/* Deep Work Session */}
-                <div className="flex items-center gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <div className="text-lg">🎯</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">Deep Work Session</div>
-                    <div className="text-xs text-white/60">2+ hours focused work</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-mario-yellow">10 coins</span>
-                    <CheckCircle className="h-4 w-4 text-green-400" />
-                  </div>
-                </div>
-                
-                {/* X Post */}
-                <div className="flex items-center gap-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <div className="text-lg">🐦</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">X Post</div>
-                    <div className="text-xs text-white/60">Share your progress</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-mario-yellow">5 coins</span>
-                    <CheckCircle className="h-4 w-4 text-blue-400" />
-                  </div>
-                </div>
-                
-                {/* Push/Earning */}
-                <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
-                  <div className="text-lg">⚡</div>
-                  <div className="flex-1">
-                    <div className="text-sm">Code or Content Push</div>
-                    <div className="text-xs text-white/60">Log any earnings</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-mario-yellow">15 coins</span>
-                    <button className="px-2 py-1 bg-mario-blue hover:bg-mario-blue/80 rounded text-xs">
-                      Log
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Streak Bonus */}
-                <div className="flex items-center gap-3 p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                  <div className="text-lg">📅</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">Streak Bonus</div>
-                    <div className="text-xs text-white/60">Daily consistency</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-mario-yellow">5 coins</span>
-                    <CheckCircle className="h-4 w-4 text-orange-400" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-4 p-3 bg-mario-yellow/10 rounded-lg border border-mario-yellow/20">
-                <div className="text-xs font-medium text-mario-yellow">Coin Progress</div>
-                <div className="w-full bg-white/10 rounded-full h-2 mt-1">
-                  <div 
-                    className="bg-mario-yellow rounded-full h-2" 
-                    style={{ width: `${Math.min((displayData.dailyCoinsEarned / 35) * 100, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-white/60 mt-1">
-                  {35 - displayData.dailyCoinsEarned > 0 ? `${35 - displayData.dailyCoinsEarned} coins to max daily` : 'Daily max reached!'}
-                </div>
-              </div>
-            </div>
+            <DailyActions
+              userId={user?.id || ''}
+              actions={dailyActions}
+              dailyCoinsEarned={displayData.dailyCoinsEarned}
+            />
           </div>
 
           {/* Projects & Community */}
@@ -595,13 +631,124 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* Push Logs */}
+            <PushLogs 
+              userId={user?.id || "demo-user"}
+              logs={pushLogs}
+              loading={statsLoading}
+            />
+
             {/* X Feed */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-1">
               <XFeed userId={user?.id || "demo-user"} limit={5} />
             </div>
           </div>
         </section>
       </div>
+
+      {/* Log Session Modal */}
+      {showSessionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="glass-card w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold">🎯 Log Session</h3>
+                <button
+                  onClick={() => setShowSessionModal(false)}
+                  className="text-white/60 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Session Duration</label>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handleSessionSubmit(2)}
+                      className="w-full p-3 bg-mario-blue/20 border border-mario-blue/30 rounded-lg hover:bg-mario-blue/30 transition-colors text-left"
+                    >
+                      <div className="font-medium">2 hours</div>
+                      <div className="text-xs text-white/60">+10 coins</div>
+                    </button>
+                    <button
+                      onClick={() => handleSessionSubmit(2.5)}
+                      className="w-full p-3 bg-mario-green/20 border border-mario-green/30 rounded-lg hover:bg-mario-green/30 transition-colors text-left"
+                    >
+                      <div className="font-medium">2+ hours</div>
+                      <div className="text-xs text-white/60">+15 coins</div>
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description (optional)</label>
+                  <textarea
+                    value={sessionDescription}
+                    onChange={(e) => setSessionDescription(e.target.value)}
+                    className="w-full p-3 bg-white/10 rounded-lg border border-white/20 focus:border-mario-blue focus:outline-none"
+                    rows={3}
+                    placeholder="What did you work on?"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Log Push Modal */}
+      {showPushModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="glass-card w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold">⚡ Log Push</h3>
+                <button
+                  onClick={() => setShowPushModal(false)}
+                  className="text-white/60 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={handlePushSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Describe your push
+                  </label>
+                  <textarea
+                    value={pushDescription}
+                    onChange={(e) => setPushDescription(e.target.value)}
+                    className="w-full p-3 bg-white/10 rounded-lg border border-white/20 focus:border-mario-blue focus:outline-none"
+                    rows={3}
+                    placeholder="What did you ship today? Code, content, or progress..."
+                    required
+                  />
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPushModal(false)}
+                    className="flex-1 p-3 bg-white/10 rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!pushDescription.trim()}
+                    className="flex-1 p-3 bg-mario-blue rounded-lg hover:bg-mario-blue/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    Log Push (+15 coins)
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Project Modal */}
       {user && (

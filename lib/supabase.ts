@@ -17,12 +17,22 @@ export const createSupabaseClient = () => {
 
 // Authentication helpers
 export const signInWithTwitter = async () => {
+  console.log('Starting Twitter OAuth...')
+  console.log('Redirect URL:', `${window.location.origin}/auth/callback`)
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'twitter',
     options: {
       redirectTo: `${window.location.origin}/auth/callback`
     }
   })
+  
+  console.log('OAuth response:', { data, error })
+  
+  if (error) {
+    console.error('OAuth error:', error)
+  }
+  
   return { data, error }
 }
 
@@ -197,10 +207,29 @@ export const createProject = async (userId: string, projectData: {
     .select()
     .single()
 
-  // If this is the user's first earning, trigger achievement
   let newAchievements: string[] = []
-  if (!error && projectData.revenue > 0) {
-    newAchievements = (await checkAndAwardAchievements(userId, 'first_earning')) || []
+  
+  if (!error && data) {
+    // Recalculate user stats and update profile
+    const userStats = await calculateUserStats(userId)
+    if (userStats) {
+      // Update profile with new totals and level
+      await supabase
+        .from('profiles')
+        .update({
+          total_earnings: userStats.totalEarnings,
+          level: userStats.level,
+          current_streak: userStats.currentStreak,
+          longest_streak: userStats.longestStreak,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+    }
+    
+    // Check for achievements
+    if (projectData.revenue > 0) {
+      newAchievements = (await checkAndAwardAchievements(userId, 'first_earning')) || []
+    }
   }
 
   return { data, error, newAchievements }
@@ -222,6 +251,30 @@ export const updateProject = async (projectId: string, updates: Partial<{
     .eq('id', projectId)
     .select()
     .single()
+
+  // If revenue was updated, trigger progression system
+  if (!error && data && updates.revenue !== undefined) {
+    const userId = data.user_id
+    
+    // Recalculate user stats and update profile
+    const userStats = await calculateUserStats(userId)
+    if (userStats) {
+      // Update profile with new totals and level
+      await supabase
+        .from('profiles')
+        .update({
+          total_earnings: userStats.totalEarnings,
+          level: userStats.level,
+          current_streak: userStats.currentStreak,
+          longest_streak: userStats.longestStreak,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+      
+      // Check for level-based achievements
+      await checkAndAwardAchievements(userId, 'revenue_update')
+    }
+  }
 
   return { data, error }
 }
@@ -250,7 +303,7 @@ export const logDailyAction = async (userId: string, actionType: 'deep_work' | '
 
   // Get coin value for action
   const coinValues = {
-    deep_work: 10,
+    deep_work: data.duration && data.duration >= 150 ? 15 : 10, // 2.5 hours = 150 minutes
     x_post: 5,
     push: 15,
     manual_earning: 15
@@ -305,20 +358,35 @@ export const checkAndAwardAchievements = async (userId: string, trigger: string)
   const currentAchievements = profile.achievements || []
   const newAchievements = [...currentAchievements]
 
+  // Get current user stats for achievement checks
+  const userStats = await calculateUserStats(userId)
+  if (!userStats) return
+
   // Check for First Coin achievement
-  if (trigger === 'first_earning' && !currentAchievements.includes('first_coin')) {
+  if ((trigger === 'first_earning' || trigger === 'revenue_update') && userStats.totalEarnings > 0 && !currentAchievements.includes('first_coin')) {
     newAchievements.push('first_coin')
   }
 
-  // Check for level-based achievements
-  const userStats = await calculateUserStats(userId)
-  if (userStats) {
-    if (userStats.totalEarnings >= 10000 && !currentAchievements.includes('star_power')) {
-      newAchievements.push('star_power')
-    }
-    if (userStats.totalEarnings >= 100000 && !currentAchievements.includes('castle_master')) {
-      newAchievements.push('castle_master')
-    }
+  // Check for milestone-based achievements
+  if (userStats.totalEarnings >= 1000 && !currentAchievements.includes('fire_flower')) {
+    newAchievements.push('fire_flower')
+  }
+  
+  if (userStats.totalEarnings >= 10000 && !currentAchievements.includes('star_power')) {
+    newAchievements.push('star_power')
+  }
+  
+  if (userStats.totalEarnings >= 25000 && !currentAchievements.includes('one_up')) {
+    newAchievements.push('one_up')
+  }
+  
+  if (userStats.totalEarnings >= 100000 && !currentAchievements.includes('castle_master')) {
+    newAchievements.push('castle_master')
+  }
+
+  // Check for project-based achievements
+  if (userStats.activeProjects >= 1 && !currentAchievements.includes('mushroom_power')) {
+    newAchievements.push('mushroom_power')
   }
 
   // Update profile if new achievements
