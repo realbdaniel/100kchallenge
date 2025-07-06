@@ -111,6 +111,7 @@ export default function DashboardPage() {
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [showSessionModal, setShowSessionModal] = useState(false)
   const [showPushModal, setShowPushModal] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<any>(null)
   const [sessionDescription, setSessionDescription] = useState('')
   const [pushDescription, setPushDescription] = useState('')
   const [newAchievements, setNewAchievements] = useState<string[]>([])
@@ -332,6 +333,18 @@ export default function DashboardPage() {
     }
   }
   
+  // Handler for opening project edit modal
+  const handleEditProject = (project: any) => {
+    setSelectedProject(project)
+    setShowProjectModal(true)
+  }
+
+  // Handler for closing project modal
+  const handleCloseProjectModal = () => {
+    setSelectedProject(null)
+    setShowProjectModal(false)
+  }
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -513,24 +526,6 @@ export default function DashboardPage() {
             </div>
           )}
           
-          {/* Debug Button for Profile Creation */}
-          {user && (
-            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-red-300">Database Debug</h3>
-                  <p className="text-xs text-red-200">If project creation fails, click to fix your profile</p>
-                </div>
-                <button
-                  onClick={createProfileManually}
-                  className="px-3 py-1.5 bg-red-500/30 hover:bg-red-500/50 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Fix Profile
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Revenue */}
@@ -653,46 +648,51 @@ export default function DashboardPage() {
             {/* Recent Projects */}
             <div className="glass-card overflow-hidden">
               <div className="p-6 border-b border-white/10">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-medium">Active Projects</h2>
-                  <Link href="/dashboard/projects" className="text-sm text-blue-400 hover:text-blue-300">
-                    View All
-                  </Link>
-                </div>
+                <h2 className="font-medium">Active Projects</h2>
               </div>
               
-              <div className="p-4 space-y-3">
-                {displayData.projects && displayData.projects.length > 0 ? (
-                  displayData.projects.slice(0, 3).map((project: any) => (
-                    <div key={project.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <Rocket className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium text-sm">{project.title}</div>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                            project.status === 'live' 
-                              ? 'bg-green-500/20 text-green-300' 
-                              : 'bg-yellow-500/20 text-yellow-300'
-                          }`}>
-                            {project.status}
-                          </span>
+              <div className="max-h-80 overflow-y-auto">
+                <div className="p-4 space-y-3">
+                  {displayData.projects && displayData.projects.length > 0 ? (
+                    displayData.projects.map((project: any) => (
+                      <div key={project.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          <Rocket className="w-5 h-5" />
                         </div>
-                        <div className="text-xs text-white/60">
-                          ${project.revenue.toLocaleString()}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium text-sm">{project.title}</div>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                              project.status === 'live' 
+                                ? 'bg-green-500/20 text-green-300' 
+                                : project.status === 'development'
+                                ? 'bg-yellow-500/20 text-yellow-300'
+                                : 'bg-gray-500/20 text-gray-300'
+                            }`}>
+                              {project.status}
+                            </span>
+                          </div>
+                          <div className="text-xs text-white/60">
+                            ${project.revenue.toLocaleString()}
+                          </div>
                         </div>
+                        <button 
+                          onClick={() => handleEditProject(project)}
+                          className="p-1 hover:bg-white/10 rounded transition-colors"
+                          title="Edit project"
+                        >
+                          <MoreHorizontal className="h-4 w-4 text-white/40 hover:text-white/60" />
+                        </button>
                       </div>
-                      <MoreHorizontal className="h-4 w-4 text-white/40" />
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-white/60">
+                      <Rocket className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No projects yet</p>
+                      <p className="text-xs">Create your first project to start tracking revenue!</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-white/60">
-                    <Rocket className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No projects yet</p>
-                    <p className="text-xs">Create your first project to start tracking revenue!</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
@@ -819,7 +819,7 @@ export default function DashboardPage() {
       {user && (
         <ProjectModal 
           isOpen={showProjectModal}
-          onClose={() => setShowProjectModal(false)}
+          onClose={handleCloseProjectModal}
           onSuccess={(achievements?: string[]) => {
             // Refresh user data after project creation
             fetchUserData(user.id)
@@ -829,6 +829,7 @@ export default function DashboardPage() {
             }
           }}
           userId={user.id}
+          project={selectedProject}
         />
       )}
 

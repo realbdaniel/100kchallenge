@@ -177,7 +177,7 @@ export const calculateUserStats = async (userId: string) => {
       level,
       currentStreak,
       longestStreak,
-      activeProjects: projects?.filter(p => p.status === 'live').length || 0,
+      activeProjects: projects?.length || 0,
       totalProjects: projects?.length || 0,
       dailyCoinsEarned,
       projects
