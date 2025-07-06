@@ -6,6 +6,7 @@ CREATE TABLE public.profiles (
     id UUID REFERENCES auth.users ON DELETE CASCADE,
     username TEXT UNIQUE,
     name TEXT,
+    email TEXT,
     avatar_url TEXT,
     bio TEXT,
     twitter_username TEXT,
