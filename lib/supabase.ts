@@ -107,28 +107,46 @@ export const calculateUserStats = async (userId: string) => {
     // Get current level based on earnings
     const level = getLevelFromEarnings(totalEarnings)
     
-    // Get daily actions for streak calculation
+    // Get daily actions for streak calculation - need all action types for each date
     const { data: recentActions } = await supabase
       .from('daily_actions')
-      .select('date, completed')
+      .select('date, action_type, completed')
       .eq('user_id', userId)
       .eq('completed', true)
       .order('date', { ascending: false })
       .limit(365)
     
-    // Calculate current streak
+    // Calculate current streak - only count days with all 3 actions completed
     let currentStreak = 0
     if (recentActions && recentActions.length > 0) {
-      const today = new Date().toISOString().split('T')[0]
-      const sortedDates = Array.from(new Set(recentActions.map(a => a.date))).sort().reverse()
+      // Group actions by date and check if all 3 are completed
+      const actionsByDate: { [date: string]: string[] } = {}
+      recentActions.forEach(action => {
+        if (!actionsByDate[action.date]) {
+          actionsByDate[action.date] = []
+        }
+        actionsByDate[action.date].push(action.action_type)
+      })
       
-      for (let i = 0; i < sortedDates.length; i++) {
-        const date = sortedDates[i]
+      // Find dates with all 3 actions completed
+      const completeDates = Object.keys(actionsByDate)
+        .filter(date => {
+          const actions = actionsByDate[date]
+          return actions.includes('deep_work') && 
+                 actions.includes('x_post') && 
+                 actions.includes('push')
+        })
+        .sort()
+        .reverse()
+      
+      // Calculate streak from today backwards
+      const today = new Date().toISOString().split('T')[0]
+      for (let i = 0; i < completeDates.length; i++) {
         const expectedDate = new Date()
         expectedDate.setDate(expectedDate.getDate() - i)
         const expected = expectedDate.toISOString().split('T')[0]
         
-        if (date === expected) {
+        if (completeDates.includes(expected)) {
           currentStreak++
         } else {
           break
@@ -136,17 +154,36 @@ export const calculateUserStats = async (userId: string) => {
       }
     }
     
-    // Calculate longest streak
+    // Calculate longest streak - also based on complete days only
     let longestStreak = 0
-    let tempStreak = 0
     if (recentActions && recentActions.length > 0) {
-      const dates = Array.from(new Set(recentActions.map(a => a.date))).sort()
-      for (let i = 0; i < dates.length; i++) {
+      // Group actions by date
+      const actionsByDate: { [date: string]: string[] } = {}
+      recentActions.forEach(action => {
+        if (!actionsByDate[action.date]) {
+          actionsByDate[action.date] = []
+        }
+        actionsByDate[action.date].push(action.action_type)
+      })
+      
+      // Find dates with all 3 actions completed
+      const completeDates = Object.keys(actionsByDate)
+        .filter(date => {
+          const actions = actionsByDate[date]
+          return actions.includes('deep_work') && 
+                 actions.includes('x_post') && 
+                 actions.includes('push')
+        })
+        .sort()
+      
+      // Calculate longest consecutive streak
+      let tempStreak = 0
+      for (let i = 0; i < completeDates.length; i++) {
         if (i === 0) {
           tempStreak = 1
         } else {
-          const prevDate = new Date(dates[i - 1])
-          const currDate = new Date(dates[i])
+          const prevDate = new Date(completeDates[i - 1])
+          const currDate = new Date(completeDates[i])
           const diffTime = currDate.getTime() - prevDate.getTime()
           const diffDays = diffTime / (1000 * 60 * 60 * 24)
           
@@ -343,11 +380,75 @@ export const logDailyAction = async (userId: string, actionType: 'deep_work' | '
         .eq('id', userId)
     }
 
+    // Check if this completes all 3 daily actions for streak bonus
+    await checkAndAwardStreakBonus(userId, targetDate)
+
     // Check for achievements
     await checkAndAwardAchievements(userId, actionType)
   }
 
   return { data: action, error }
+}
+
+// Check and award streak bonus when all 3 actions completed
+export const checkAndAwardStreakBonus = async (userId: string, date: string) => {
+  // Get all actions for the date
+  const { data: dayActions } = await supabase
+    .from('daily_actions')
+    .select('action_type, completed')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .eq('completed', true)
+
+  if (!dayActions) return
+
+  // Check if all 3 core actions are completed
+  const actionTypes = dayActions.map(a => a.action_type)
+  const hasDeepWork = actionTypes.includes('deep_work')
+  const hasXPost = actionTypes.includes('x_post') 
+  const hasPush = actionTypes.includes('push')
+  
+  // Only award streak bonus if all 3 are completed
+  if (hasDeepWork && hasXPost && hasPush) {
+    // Check if streak bonus already awarded for this date
+    const hasStreakBonus = dayActions.some(a => a.action_type === 'streak_bonus')
+    
+    if (!hasStreakBonus) {
+      // Get current streak to see if bonus should be awarded
+      const userStats = await calculateUserStats(userId)
+      if (userStats && userStats.currentStreak >= 2) {
+        // Award streak bonus
+        await supabase
+          .from('daily_actions')
+          .insert([{
+            user_id: userId,
+            date: date,
+            action_type: 'streak_bonus',
+            completed: true,
+            coins_earned: 5,
+            description: 'All daily actions completed',
+            created_at: new Date().toISOString()
+          }])
+
+        // Update profile total coins
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('total_coins')
+          .eq('id', userId)
+          .single()
+
+        if (currentProfile) {
+          await supabase
+            .from('profiles')
+            .update({
+              total_coins: (currentProfile.total_coins || 0) + 5,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId)
+        }
+      }
+    }
+  }
 }
 
 // Achievement System

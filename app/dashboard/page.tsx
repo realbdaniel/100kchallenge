@@ -640,6 +640,7 @@ export default function DashboardPage() {
               userId={user?.id || ''}
               actions={dailyActions}
               dailyCoinsEarned={displayData.dailyCoinsEarned}
+              currentStreak={displayData.currentStreak}
             />
           </div>
 
