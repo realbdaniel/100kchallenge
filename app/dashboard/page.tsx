@@ -706,7 +706,7 @@ export default function DashboardPage() {
 
             {/* X Feed */}
             <div className="lg:col-span-1">
-              <XFeed userId={user?.id || "demo-user"} limit={5} />
+                              <XFeed limit={5} />
             </div>
           </div>
         </section>

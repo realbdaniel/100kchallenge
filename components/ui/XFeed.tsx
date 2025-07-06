@@ -1,87 +1,45 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Heart, MessageCircle, Repeat2, Share, ExternalLink, Clock } from 'lucide-react'
+import { Heart, MessageCircle, Repeat2, Share, ExternalLink, Clock, AlertCircle } from 'lucide-react'
 import { TwitterPost } from '@/lib/supabase'
 
 interface XFeedProps {
-  userId?: string
   limit?: number
   showHeader?: boolean
 }
 
-// Mock Twitter posts for demo
-const mockTwitterPosts: TwitterPost[] = [
-  {
-    id: '1',
-    user_id: 'demo-user',
-    tweet_id: '1234567890',
-    content: 'Just shipped a new feature for my SaaS! 🚀 The grind never stops. Building in public day 23 #buildinpublic #100kchallenge',
-    author_name: 'Demo Builder',
-    author_username: 'demobuilder',
-    author_avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face',
-    created_at: '2024-01-20T10:30:00Z',
-    likes: 47,
-    retweets: 12,
-    replies: 8
-  },
-  {
-    id: '2',
-    user_id: 'demo-user',
-    tweet_id: '1234567891',
-    content: 'Deep work session complete ✅ 3 hours of pure focus on the new dashboard. Sometimes you just need to disconnect and build.',
-    author_name: 'Demo Builder',
-    author_username: 'demobuilder',
-    author_avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face',
-    created_at: '2024-01-19T14:15:00Z',
-    likes: 23,
-    retweets: 5,
-    replies: 3
-  },
-  {
-    id: '3',
-    user_id: 'demo-user',
-    tweet_id: '1234567892',
-    content: 'Monthly revenue update: $32k MRR! 🎉 68% to my $100k goal. Crazy to think I started this journey 8 months ago with just an idea.',
-    author_name: 'Demo Builder',
-    author_username: 'demobuilder',
-    author_avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face',
-    created_at: '2024-01-18T09:45:00Z',
-    likes: 156,
-    retweets: 34,
-    replies: 21
-  },
-  {
-    id: '4',
-    user_id: 'demo-user',
-    tweet_id: '1234567893',
-    content: 'Pro tip: Your biggest competitor is your past self. Every day is a chance to level up 💪 What are you building today?',
-    author_name: 'Demo Builder',
-    author_username: 'demobuilder',
-    author_avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face',
-    created_at: '2024-01-17T16:20:00Z',
-    likes: 89,
-    retweets: 18,
-    replies: 12
-  }
-]
-
-export function XFeed({ userId, limit = 10, showHeader = true }: XFeedProps) {
+export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
   const [posts, setPosts] = useState<TwitterPost[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulate API call
     const loadPosts = async () => {
       setLoading(true)
-      // In real implementation, fetch from Supabase
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setPosts(mockTwitterPosts.slice(0, limit))
-      setLoading(false)
+      setError(null)
+
+      try {
+        const response = await fetch(`/api/twitter/posts`)
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to fetch posts')
+        }
+
+        const data = await response.json()
+        setPosts(data.posts || [])
+      } catch (err: any) {
+        console.error('Error loading X posts:', err)
+        setError(err.message)
+        setPosts([])
+      } finally {
+        setLoading(false)
+      }
     }
 
     loadPosts()
-  }, [userId, limit])
+  }, [limit])
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
@@ -130,6 +88,38 @@ export function XFeed({ userId, limit = 10, showHeader = true }: XFeedProps) {
     )
   }
 
+  if (error) {
+    return (
+      <div className="glass-card overflow-hidden">
+        {showHeader && (
+          <div className="p-6 border-b border-white/10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <span className="text-lg">𝕏</span>
+                </div>
+                <h2 className="font-medium">X Feed</h2>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="p-6 text-center text-white/60">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="h-6 w-6 text-red-400" />
+          </div>
+          <p className="text-sm font-medium text-red-400">Unable to load X feed</p>
+          <p className="text-xs mt-1 text-white/60">{error}</p>
+          {error.includes('No Twitter username found') && (
+            <p className="text-xs mt-2 text-yellow-400">
+              Connect your X account in settings to see your feed
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="glass-card overflow-hidden">
       {showHeader && (
@@ -167,6 +157,10 @@ export function XFeed({ userId, limit = 10, showHeader = true }: XFeedProps) {
                     src={post.author_avatar}
                     alt={post.author_name}
                     className="w-10 h-10 rounded-full border border-white/20"
+                    onError={(e) => {
+                      // Fallback to a default avatar if image fails to load
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face'
+                    }}
                   />
                   
                   <div className="flex-1 min-w-0">
