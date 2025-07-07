@@ -111,6 +111,7 @@ export default function DashboardPage() {
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [showSessionModal, setShowSessionModal] = useState(false)
   const [showPushModal, setShowPushModal] = useState(false)
+  const [showDonationModal, setShowDonationModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<any>(null)
   const [sessionDescription, setSessionDescription] = useState('')
   const [pushDescription, setPushDescription] = useState('')
@@ -463,15 +464,23 @@ export default function DashboardPage() {
           ))}
         </nav>
 
-        {/* Upgrade Card */}
-        <div className="mt-auto bg-gradient-to-br from-blue-600/20 to-cyan-600/20 p-4 rounded-xl">
+        {/* Support the Project */}
+        <div className="mt-auto bg-gradient-to-br from-purple-600/20 to-pink-600/20 p-4 rounded-xl">
           <p className="text-sm leading-snug">
-            Upgrade to <span className="font-semibold text-cyan-400">Builder PRO</span> for unlimited projects and premium features!
+            Support the <span className="font-semibold text-pink-400">100K Challenge</span> project and help us build better features!
           </p>
           <div className="flex items-center justify-between mt-4 text-sm">
-            <button className="hover:underline text-white/70">Maybe Later</button>
-            <button className="bg-white/10 hover:bg-white/20 transition px-3 py-1.5 rounded-md font-medium">
-              Go Premium
+            <button 
+              onClick={() => setShowDonationModal(false)}
+              className="hover:underline text-white/70"
+            >
+              Maybe Later
+            </button>
+            <button 
+              onClick={() => setShowDonationModal(true)}
+              className="bg-white/10 hover:bg-white/20 transition px-3 py-1.5 rounded-md font-medium"
+            >
+              💝 Donate
             </button>
           </div>
         </div>
@@ -832,6 +841,82 @@ export default function DashboardPage() {
           userId={user.id}
           project={selectedProject}
         />
+      )}
+
+      {/* Donation Modal */}
+      {showDonationModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-card w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  💝 Support the Project
+                </h3>
+                <button
+                  onClick={() => setShowDonationModal(false)}
+                  className="text-white/60 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-white/80 mb-4">
+                    Your support helps us continue developing the 100K Challenge platform with improved gamification, analytics, and new features for builders worldwide!
+                  </p>
+                  
+                  <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4 rounded-lg border border-purple-500/30 mb-4">
+                    <p className="text-sm font-medium text-purple-300 mb-2">
+                      🚀 What your support enables:
+                    </p>
+                    <ul className="text-xs text-white/70 space-y-1">
+                      <li>• Enhanced gamification features</li>
+                      <li>• Advanced analytics dashboard</li>
+                      <li>• Community features & competitions</li>
+                      <li>• Mobile app development</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="w-32 h-32 bg-white p-2 rounded-lg">
+                        <img 
+                          src="/venmo-qr.png" 
+                          alt="Venmo QR Code" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    
+                    <a
+                      href="https://venmo.com/u/benjamin-daniel-1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
+                    >
+                      <span>💳</span>
+                      Donate via Venmo
+                    </a>
+                    
+                    <p className="text-xs text-white/50">
+                      @benjamin-daniel-1
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowDonationModal(false)}
+                    className="flex-1 p-3 bg-white/10 rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Achievement Notifications */}
