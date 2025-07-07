@@ -665,6 +665,8 @@ export default function DashboardPage() {
                   <DailyActions 
                     actions={dailyActions}
                     currentStreak={displayData.currentStreak}
+                    userId={user?.id || ''}
+                    dailyCoinsEarned={displayData.dailyCoinsEarned}
                   />
                 </div>
 
@@ -712,7 +714,7 @@ export default function DashboardPage() {
 
                 {/* Recent Activity */}
                 <div className="lg:col-span-4">
-                  <PushLogs logs={pushLogs} />
+                  <PushLogs logs={pushLogs} userId={user?.id || ''} />
                 </div>
 
                 {/* X Feed */}
