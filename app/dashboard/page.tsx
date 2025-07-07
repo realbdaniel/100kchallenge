@@ -522,17 +522,31 @@ export default function DashboardPage() {
         {/* Navigation */}
         <nav className="flex flex-col gap-1 text-sm">
           {navigationItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => setActiveTab(item.tabId)}
-              className={item.active ? 'sidebar-link-active' : 'sidebar-link'}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-              {item.label === 'Community' && (
-                <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-md">NEW</span>
-              )}
-            </button>
+            item.tabId === 'achievements' ? (
+              <Link
+                key={item.label}
+                href="/dashboard/achievements"
+                className={item.active ? 'sidebar-link-active' : 'sidebar-link'}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+                {item.label === 'Community' && (
+                  <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-md">NEW</span>
+                )}
+              </Link>
+            ) : (
+              <button
+                key={item.label}
+                onClick={() => setActiveTab(item.tabId)}
+                className={item.active ? 'sidebar-link-active' : 'sidebar-link'}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+                {item.label === 'Community' && (
+                  <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-md">NEW</span>
+                )}
+              </button>
+            )
           ))}
         </nav>
 

@@ -21,28 +21,33 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
       setError(null)
 
       try {
-        // Get the current session for auth headers
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        const headers: HeadersInit = {
-          'Content-Type': 'application/json',
-        }
-        
-        // Add auth header if we have a session
-        if (session?.access_token) {
-          headers.Authorization = `Bearer ${session.access_token}`
-        }
-
-        const response = await fetch(`/api/twitter/posts`, { headers })
+        const response = await fetch(`/api/twitter/posts`)
         const data = await response.json()
         
-        // Set posts regardless of response status - the API returns fallback data
+        if (!response.ok) {
+          // Handle different error types
+          if (response.status === 401) {
+            setError('Not authenticated. Please log in with your X account.')
+          } else if (response.status === 400) {
+            setError('Please connect your X account in settings.')
+          } else if (response.status === 404) {
+            setError('Profile not found.')
+          } else if (response.status === 500) {
+            setError('Unable to load X posts. Please try again later.')
+          } else {
+            setError(data.error || 'Failed to load X posts')
+          }
+          setPosts([])
+          return
+        }
+        
+        // Only set posts if we have a successful response
         setPosts(data.posts || [])
         setError(null)
         
       } catch (err: any) {
         console.error('Error loading X posts:', err)
-        setError(err.message)
+        setError('Network error. Please check your connection.')
         setPosts([])
       } finally {
         setLoading(false)
@@ -119,13 +124,20 @@ export function XFeed({ limit = 10, showHeader = true }: XFeedProps) {
       )}
 
       <div className="max-h-96 overflow-y-auto">
-        {posts.length === 0 ? (
+        {error ? (
+          <div className="p-6 text-center text-red-400">
+            <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-8 w-8" />
+            </div>
+            <p className="text-sm">{error}</p>
+          </div>
+        ) : posts.length === 0 ? (
           <div className="p-6 text-center text-white/60">
             <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">𝕏</span>
             </div>
             <p className="text-sm">No posts yet</p>
-            <p className="text-xs mt-1">Connect your X account to see your feed</p>
+            <p className="text-xs mt-1">Share your progress on X to see your posts here</p>
           </div>
         ) : (
           <div className="divide-y divide-white/10">

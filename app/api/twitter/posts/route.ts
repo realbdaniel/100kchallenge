@@ -24,80 +24,17 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Get session from authorization header if available
-    const authHeader = request.headers.get('authorization')
-    let user = null
-
-    if (authHeader?.startsWith('Bearer ')) {
-      // Try with bearer token
-      const token = authHeader.substring(7)
-      const { data: { user: tokenUser }, error } = await supabase.auth.getUser(token)
-      if (!error && tokenUser) {
-        user = tokenUser
-      }
+    // Simple session-based authentication
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError || !session?.user) {
+      return NextResponse.json({ 
+        error: 'Not authenticated',
+        posts: [] 
+      }, { status: 401 })
     }
 
-    // If no bearer token, try with session cookies
-    if (!user) {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (!sessionError && session?.user) {
-        user = session.user
-      }
-    }
-
-    // If still no user, try a different approach with service client
-    if (!user) {
-      // Check if we can get user from any available session data
-      const sb_access_token = cookieStore.get('sb-access-token')?.value || 
-                              cookieStore.get('supabase-auth-token')?.value ||
-                              cookieStore.get('sb-localhost-auth-token')?.value
-
-      if (sb_access_token) {
-        try {
-          const { data: { user: serviceUser }, error } = await supabase.auth.getUser(sb_access_token)
-          if (!error && serviceUser) {
-            user = serviceUser
-          }
-        } catch (e) {
-          console.log('Service auth attempt failed:', e)
-        }
-      }
-    }
-
-    if (!user) {
-      console.log('No user found in any authentication method')
-      // Return fallback posts for demo purposes
-      const fallbackPosts = [
-        {
-          id: '1',
-          user_id: 'demo',
-          tweet_id: '1234567890',
-          content: `Just shipped a new feature! 🚀 The grind never stops. Building in public #buildinpublic #100kchallenge`,
-          author_name: 'Builder',
-          author_username: 'builder',
-          author_avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face',
-          created_at: new Date().toISOString(),
-          likes: 47,
-          retweets: 12,
-          replies: 8
-        },
-        {
-          id: '2',
-          user_id: 'demo',
-          tweet_id: '1234567891',
-          content: `Deep work session complete ✅ 3 hours of pure focus. Sometimes you just need to disconnect and build.`,
-          author_name: 'Builder',
-          author_username: 'builder',
-          author_avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face',
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          likes: 23,
-          retweets: 5,
-          replies: 3
-        }
-      ]
-      return NextResponse.json({ posts: fallbackPosts })
-    }
-
+    const user = session.user
     console.log('User authenticated:', user.id)
 
     // Get user's profile to get their Twitter username
@@ -109,16 +46,18 @@ export async function GET(request: NextRequest) {
 
     if (profileError) {
       console.error('Profile error:', profileError)
-      // Generate fallback posts with user ID
-      const fallbackPosts = await generateFallbackPosts(supabase, user.id, 'builder')
-      return NextResponse.json({ posts: fallbackPosts })
+      return NextResponse.json({ 
+        error: 'Profile not found',
+        posts: [] 
+      }, { status: 404 })
     }
 
     if (!profile?.twitter_username) {
       console.log('No Twitter username found for user:', user.id)
-      // Generate fallback posts even without Twitter username
-      const fallbackPosts = await generateFallbackPosts(supabase, user.id, 'builder')
-      return NextResponse.json({ posts: fallbackPosts })
+      return NextResponse.json({ 
+        error: 'Twitter username not configured',
+        posts: [] 
+      }, { status: 400 })
     }
 
     const targetUsername = profile.twitter_username
@@ -127,10 +66,11 @@ export async function GET(request: NextRequest) {
     const twitterBearerToken = process.env.TWITTER_BEARER_TOKEN
     
     if (!twitterBearerToken) {
-      console.log('No Twitter Bearer Token found, using fallback data')
-      // Return contextual fallback data based on user's profile
-      const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
-      return NextResponse.json({ posts: fallbackPosts })
+      console.log('No Twitter Bearer Token configured')
+      return NextResponse.json({ 
+        error: 'Twitter API not configured',
+        posts: [] 
+      }, { status: 500 })
     }
 
     // Make real Twitter API calls
@@ -148,17 +88,20 @@ export async function GET(request: NextRequest) {
       if (!userResponse.ok) {
         const errorText = await userResponse.text()
         console.error('Failed to fetch Twitter user:', userResponse.status, errorText)
-        // Fall back to contextual mock data
-        const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
-        return NextResponse.json({ posts: fallbackPosts })
+        return NextResponse.json({ 
+          error: 'Failed to fetch Twitter user',
+          posts: [] 
+        }, { status: 500 })
       }
 
       const userData = await userResponse.json()
       
       if (!userData.data) {
         console.error('No user data returned from Twitter API')
-        const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
-        return NextResponse.json({ posts: fallbackPosts })
+        return NextResponse.json({ 
+          error: 'Twitter user not found',
+          posts: [] 
+        }, { status: 404 })
       }
 
       const twitterUserId = userData.data.id
@@ -174,9 +117,10 @@ export async function GET(request: NextRequest) {
       if (!tweetsResponse.ok) {
         const errorText = await tweetsResponse.text()
         console.error('Failed to fetch tweets:', tweetsResponse.status, errorText)
-        // Fall back to contextual mock data
-        const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
-        return NextResponse.json({ posts: fallbackPosts })
+        return NextResponse.json({ 
+          error: 'Failed to fetch tweets',
+          posts: [] 
+        }, { status: 500 })
       }
 
       const tweetsData = await tweetsResponse.json()
@@ -204,16 +148,16 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
       console.error('Error fetching real Twitter data:', error)
-      // Fall back to contextual mock data
-      const fallbackPosts = await generateFallbackPosts(supabase, user.id, targetUsername)
-      return NextResponse.json({ posts: fallbackPosts })
+      return NextResponse.json({ 
+        error: 'Failed to fetch Twitter data',
+        posts: [] 
+      }, { status: 500 })
     }
 
   } catch (error) {
     console.error('Error in Twitter API route:', error)
     return NextResponse.json({ 
       error: 'Internal server error',
-      message: 'Something went wrong loading your feed',
       posts: [] 
     }, { status: 500 })
   }
@@ -321,67 +265,7 @@ async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[])
   }
 }
 
-// Generate contextual fallback posts based on user's profile
-async function generateFallbackPosts(supabase: any, userId: string, twitterUsername: string) {
-  // Get user's profile for contextual data
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('name, total_earnings, level, current_streak')
-    .eq('id', userId)
-    .single()
 
-  const userName = profile?.name || twitterUsername
-  const userAvatar = `https://unavatar.io/twitter/${twitterUsername}`
-
-  // Generate contextual posts based on user's progress
-  const posts = [
-    {
-      id: '1',
-      user_id: userId,
-      tweet_id: '1234567890',
-      content: `Just shipped a new feature for my SaaS! 🚀 The grind never stops. Building in public day ${profile?.current_streak || 1} #buildinpublic #100kchallenge`,
-      author_name: userName,
-      author_username: twitterUsername,
-      author_avatar: userAvatar,
-      created_at: new Date().toISOString(),
-      likes: 47,
-      retweets: 12,
-      replies: 8
-    },
-    {
-      id: '2',
-      user_id: userId,
-      tweet_id: '1234567891',
-      content: `Deep work session complete ✅ 3 hours of pure focus on the new dashboard. Sometimes you just need to disconnect and build.`,
-      author_name: userName,
-      author_username: twitterUsername,
-      author_avatar: userAvatar,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      likes: 23,
-      retweets: 5,
-      replies: 3
-    }
-  ]
-
-  // Add revenue-specific posts if user has earnings
-  if (profile?.total_earnings && profile.total_earnings > 0) {
-    posts.push({
-      id: '3',
-      user_id: userId,
-      tweet_id: '1234567892',
-      content: `Monthly revenue update: $${Math.floor(profile.total_earnings / 100) * 100}+ MRR! 🎉 ${Math.floor((profile.total_earnings / 100000) * 100)}% to my $100k goal. The journey continues! #buildinpublic`,
-      author_name: userName,
-      author_username: twitterUsername,
-      author_avatar: userAvatar,
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      likes: 156,
-      retweets: 34,
-      replies: 21
-    })
-  }
-
-  return posts
-}
 
 export async function POST(request: NextRequest) {
   try {
