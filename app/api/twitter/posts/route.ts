@@ -231,6 +231,7 @@ async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[])
     .single()
 
   const userTimezone = profile?.timezone || 'UTC'
+  console.log('User timezone from profile:', userTimezone)
   
   // Get today's date in user's timezone
   const getUserToday = (tz: string) => {
@@ -240,6 +241,7 @@ async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[])
   }
 
   const today = getUserToday(userTimezone)
+  console.log('Today in user timezone:', today)
   
   // Check if user has already logged x_post action for today
   const { data: existingAction } = await supabase
@@ -256,15 +258,28 @@ async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[])
   }
 
   // Check if any posts are from today (comparing in user's timezone)
+  console.log('Checking posts for today...')
   const todayPosts = posts.filter(post => {
     const postDate = new Date(post.created_at)
+    console.log('Post created_at:', post.created_at)
+    console.log('Post date object:', postDate)
+    
+    // Convert to user's timezone for comparison
     const postDateInUserTZ = new Date(postDate.toLocaleString("en-US", { timeZone: userTimezone }))
     const postDateString = postDateInUserTZ.toISOString().split('T')[0]
+    
+    console.log('Post date in user TZ:', postDateInUserTZ)
+    console.log('Post date string:', postDateString)
+    console.log('Today string:', today)
+    console.log('Dates match:', postDateString === today)
+    
     return postDateString === today
   })
 
+  console.log(`Found ${todayPosts.length} posts from today`)
+
   if (todayPosts.length > 0) {
-    console.log(`Found ${todayPosts.length} posts from today, logging x_post action`)
+    console.log(`Logging x_post action for ${todayPosts.length} tweet(s)`)
     
     // Log the daily action for x_post
     const { error } = await supabase
@@ -301,6 +316,8 @@ async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[])
 
       console.log('Successfully logged x_post action and awarded 5 coins')
     }
+  } else {
+    console.log('No posts found for today - no action logged')
   }
 }
 
