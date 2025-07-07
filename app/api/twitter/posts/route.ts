@@ -223,7 +223,23 @@ export async function GET(request: NextRequest) {
 async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[]) {
   if (!posts || posts.length === 0) return
 
-  const today = new Date().toISOString().split('T')[0]
+  // Get user profile for timezone
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('timezone')
+    .eq('id', userId)
+    .single()
+
+  const userTimezone = profile?.timezone || 'UTC'
+  
+  // Get today's date in user's timezone
+  const getUserToday = (tz: string) => {
+    const now = new Date()
+    const userDate = new Date(now.toLocaleString("en-US", { timeZone: tz }))
+    return userDate.toISOString().split('T')[0]
+  }
+
+  const today = getUserToday(userTimezone)
   
   // Check if user has already logged x_post action for today
   const { data: existingAction } = await supabase
@@ -239,10 +255,12 @@ async function checkAndLogTodayPost(supabase: any, userId: string, posts: any[])
     return
   }
 
-  // Check if any posts are from today
+  // Check if any posts are from today (comparing in user's timezone)
   const todayPosts = posts.filter(post => {
-    const postDate = new Date(post.created_at).toISOString().split('T')[0]
-    return postDate === today
+    const postDate = new Date(post.created_at)
+    const postDateInUserTZ = new Date(postDate.toLocaleString("en-US", { timeZone: userTimezone }))
+    const postDateString = postDateInUserTZ.toISOString().split('T')[0]
+    return postDateString === today
   })
 
   if (todayPosts.length > 0) {

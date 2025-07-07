@@ -62,6 +62,16 @@ export const getUserProfile = async (userId: string) => {
   return { profile, error }
 }
 
+// Get user's current timezone-aware date
+export const getUserToday = (timezone?: string) => {
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  const now = new Date()
+  
+  // Get the date in user's timezone
+  const userDate = new Date(now.toLocaleString("en-US", { timeZone: tz }))
+  return userDate.toISOString().split('T')[0]
+}
+
 export const getUserProjects = async (userId: string) => {
   const { data: projects, error } = await supabase
     .from('projects')
@@ -72,8 +82,8 @@ export const getUserProjects = async (userId: string) => {
   return { projects, error }
 }
 
-export const getUserDailyActions = async (userId: string, date?: string) => {
-  const targetDate = date || new Date().toISOString().split('T')[0]
+export const getUserDailyActions = async (userId: string, date?: string, timezone?: string) => {
+  const targetDate = date || getUserToday(timezone)
   
   const { data: actions, error } = await supabase
     .from('daily_actions')
@@ -99,6 +109,7 @@ export const calculateUserStats = async (userId: string) => {
   try {
     // Get profile
     const { profile } = await getUserProfile(userId)
+    const userTimezone = profile?.timezone
     
     // Get projects and calculate total revenue
     const { projects } = await getUserProjects(userId)
@@ -199,7 +210,7 @@ export const calculateUserStats = async (userId: string) => {
     }
     
     // Calculate daily coins earned today
-    const today = new Date().toISOString().split('T')[0]
+    const today = getUserToday(userTimezone)
     const { data: todayActions } = await supabase
       .from('daily_actions')
       .select('coins_earned, completed')
@@ -322,8 +333,12 @@ export const logDailyAction = async (userId: string, actionType: 'deep_work' | '
   duration?: number
   amount?: number
   date?: string
+  timezone?: string
 }) => {
-  const targetDate = data.date || new Date().toISOString().split('T')[0]
+  // Get user profile to determine timezone
+  const { profile } = await getUserProfile(userId)
+  const userTimezone = data.timezone || profile?.timezone
+  const targetDate = data.date || getUserToday(userTimezone)
   
   // Check if action already logged for this date
   const { data: existing } = await supabase
@@ -381,7 +396,7 @@ export const logDailyAction = async (userId: string, actionType: 'deep_work' | '
     }
 
     // Check if this completes all 3 daily actions for streak bonus
-    await checkAndAwardStreakBonus(userId, targetDate)
+    await checkAndAwardStreakBonus(userId, targetDate, userTimezone)
 
     // Check for achievements
     await checkAndAwardAchievements(userId, actionType)
@@ -391,7 +406,7 @@ export const logDailyAction = async (userId: string, actionType: 'deep_work' | '
 }
 
 // Check and award streak bonus when all 3 actions completed
-export const checkAndAwardStreakBonus = async (userId: string, date: string) => {
+export const checkAndAwardStreakBonus = async (userId: string, date: string, timezone?: string) => {
   // Get all actions for the date
   const { data: dayActions } = await supabase
     .from('daily_actions')
@@ -632,6 +647,7 @@ export interface Profile {
   bio?: string
   twitter_username?: string
   twitter_id?: string
+  timezone?: string
   total_earnings: number
   level: number
   xp: number

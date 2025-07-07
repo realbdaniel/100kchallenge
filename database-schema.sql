@@ -18,9 +18,10 @@ CREATE TABLE public.profiles (
     current_streak INTEGER DEFAULT 0,
     longest_streak INTEGER DEFAULT 0,
     achievements TEXT[] DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-    PRIMARY KEY (id)
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+      timezone TEXT DEFAULT 'UTC',
+      PRIMARY KEY (id)
 );
 
 -- Deep work sessions table

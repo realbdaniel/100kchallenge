@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, signInWithTwitter, signOut, calculateUserStats, getUserDailyActions, getUserDeepWorkSessions, logDailyAction } from '@/lib/supabase'
+import { supabase, signInWithTwitter, signOut, calculateUserStats, getUserDailyActions, getUserDeepWorkSessions, logDailyAction, getUserProfile } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { HeatMap } from '@/components/ui/HeatMap'
@@ -126,8 +126,12 @@ export default function DashboardPage() {
         setUserStats(stats)
       }
 
-      // Get daily actions for today
-      const { actions } = await getUserDailyActions(userId)
+      // Get user profile for timezone
+      const { profile } = await getUserProfile(userId)
+      const userTimezone = profile?.timezone
+
+      // Get daily actions for today (timezone-aware)
+      const { actions } = await getUserDailyActions(userId, undefined, userTimezone)
       setDailyActions(actions || [])
 
       // Get daily actions for progress tracker (last 365 days)
@@ -240,7 +244,7 @@ export default function DashboardPage() {
       const { error } = await logDailyAction(user.id, 'deep_work', {
         description: sessionDescription.trim() || undefined,
         duration: duration * 60, // Convert to minutes
-        date: new Date().toISOString().split('T')[0]
+        // Let the function determine the correct timezone-aware date
       })
       
       if (error) {
@@ -264,7 +268,7 @@ export default function DashboardPage() {
     try {
       const { error } = await logDailyAction(user.id, 'push', {
         description: pushDescription.trim(),
-        date: new Date().toISOString().split('T')[0]
+        // Let the function determine the correct timezone-aware date
       })
       
       if (error) {
