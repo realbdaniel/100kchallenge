@@ -7,7 +7,6 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { HeatMap } from '@/components/ui/HeatMap'
 import { LevelBadge } from '@/components/ui/LevelBadge'
 import { XFeed } from '@/components/ui/XFeed'
-import { GameInfoPopup } from '@/components/ui/GameInfoPopup'
 import { ProjectModal } from '@/components/ui/ProjectModal'
 import { AchievementToast } from '@/components/ui/AchievementToast'
 import { DailyActions } from '@/components/ui/DailyActions'
@@ -15,7 +14,8 @@ import { PushLogs } from '@/components/ui/PushLogs'
 import { 
   Coins, Target, Calendar, TrendingUp, Zap, Plus, Menu, Bell, HelpCircle,
   LayoutDashboard, Trophy, Rocket, Users, Settings, Crown, Star, DollarSign,
-  Activity, Timer, CheckCircle, ArrowUp, ExternalLink, MoreHorizontal, X
+  Activity, Timer, CheckCircle, ArrowUp, ExternalLink, MoreHorizontal, X,
+  Shield, Globe, Clock, LogOut, Twitter, AlertTriangle, RefreshCw, XCircle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -117,6 +117,12 @@ export default function DashboardPage() {
   const [pushDescription, setPushDescription] = useState('')
   const [newAchievements, setNewAchievements] = useState<string[]>([])
   const [achievementQueue, setAchievementQueue] = useState<string[]>([])  
+  const [activeTab, setActiveTab] = useState<string>('studio')
+  const [apiTestResult, setApiTestResult] = useState<any>(null)
+  const [testingApi, setTestingApi] = useState(false)
+  const [timezone, setTimezone] = useState('')
+  const [detectedTimezone, setDetectedTimezone] = useState('')
+  const [sessionInfo, setSessionInfo] = useState<any>(null)
 
   const fetchUserData = async (userId: string) => {
     setStatsLoading(true)
@@ -184,7 +190,13 @@ export default function DashboardPage() {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setSessionInfo({ session, error: null })
       setLoading(false)
+      
+      // Detect timezone
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
+      setDetectedTimezone(detected)
+      setTimezone(detected)
       
       // Fetch user data if authenticated
       if (session?.user?.id) {
@@ -195,6 +207,7 @@ export default function DashboardPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setSessionInfo({ session, error: null })
       setLoading(false)
       
       // Fetch user data if authenticated
@@ -411,13 +424,68 @@ export default function DashboardPage() {
   }
 
   const navigationItems = [
-    { icon: LayoutDashboard, label: 'Studio', href: '/dashboard', active: true },
-    { icon: Target, label: 'Deep Work', href: '/dashboard/deep-work' },
-    { icon: Rocket, label: 'Projects', href: '/dashboard/projects' },
-    { icon: Trophy, label: 'Achievements', href: '/dashboard/achievements' },
-    { icon: Users, label: 'Community', href: '/dashboard/community' },
-    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+    { icon: LayoutDashboard, label: 'Studio', tabId: 'studio', active: activeTab === 'studio' },
+    { icon: Target, label: 'Deep Work', tabId: 'deep-work', active: activeTab === 'deep-work' },
+    { icon: Rocket, label: 'Projects', tabId: 'projects', active: activeTab === 'projects' },
+    { icon: Trophy, label: 'Achievements', tabId: 'achievements', active: activeTab === 'achievements' },
+    { icon: Users, label: 'Community', tabId: 'community', active: activeTab === 'community' },
+    { icon: Settings, label: 'Settings', tabId: 'settings', active: activeTab === 'settings' },
   ]
+
+  // Settings functions
+  const testTwitterApi = async () => {
+    setTestingApi(true)
+    try {
+      const response = await fetch('/api/twitter/posts')
+      const data = await response.json()
+      setApiTestResult({
+        status: response.status,
+        success: response.ok,
+        data: data,
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      setApiTestResult({
+        status: 'error',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      })
+    } finally {
+      setTestingApi(false)
+    }
+  }
+
+  const updateTimezone = async () => {
+    if (!user || !timezone) return
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        timezone,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
+
+    if (error) {
+      console.error('Error updating timezone:', error)
+    } else {
+      // Refresh the page to apply timezone changes
+      window.location.reload()
+    }
+  }
+
+  const getCurrentTime = (tz: string) => {
+    try {
+      return new Date().toLocaleString('en-US', { 
+        timeZone: tz,
+        dateStyle: 'full',
+        timeStyle: 'medium'
+      })
+    } catch {
+      return 'Invalid timezone'
+    }
+  }
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -454,9 +522,9 @@ export default function DashboardPage() {
         {/* Navigation */}
         <nav className="flex flex-col gap-1 text-sm">
           {navigationItems.map((item) => (
-            <Link
+            <button
               key={item.label}
-              href={item.href}
+              onClick={() => setActiveTab(item.tabId)}
               className={item.active ? 'sidebar-link-active' : 'sidebar-link'}
             >
               <item.icon className="h-4 w-4" />
@@ -464,7 +532,7 @@ export default function DashboardPage() {
               {item.label === 'Community' && (
                 <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-md">NEW</span>
               )}
-            </Link>
+            </button>
           ))}
         </nav>
 
@@ -519,7 +587,7 @@ export default function DashboardPage() {
               </div>
             )}
             <div className="hidden sm:block">
-              <GameInfoPopup />
+              {/* GameInfoPopup is removed as per the instructions */}
             </div>
             <div 
                className="h-8 w-8 rounded-full bg-cover bg-center border border-white/20"
@@ -528,201 +596,359 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Dashboard Content */}
-        <section className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 relative">
-          {statsLoading && (
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-10 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                <p className="text-sm text-white/80">Loading your data...</p>
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-auto p-6">
+          {/* Tab Content */}
+          {activeTab === 'studio' && (
+            <>
+              {/* Progress Overview */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                {/* Level Badge */}
+                <div className="lg:col-span-1">
+                  <LevelBadge 
+                    level={displayData.level} 
+                    earnings={displayData.totalEarnings}
+                    className="w-full h-full" 
+                  />
+                </div>
+
+                {/* Progress Bar */}
+                <div className="lg:col-span-3">
+                  <ProgressBar 
+                    current={displayData.totalEarnings} 
+                    target={100000}
+                    label={`$${displayData.totalEarnings.toLocaleString()} earned`}
+                  />
+                </div>
+              </div>
+
+              {/* Dashboard Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Progress Tracker */}
+                <div className="lg:col-span-8">
+                  <div className="glass-card p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-semibold mb-1">Daily Progress Tracker ⚡</h2>
+                        <p className="text-sm text-white/60">Your daily action streak - complete all tasks to max out 40 coins</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-blue-400">{displayData.currentStreak}</div>
+                        <div className="text-xs text-white/60">day streak</div>
+                      </div>
+                    </div>
+                    
+                    <HeatMap data={deepWorkData} />
+                    
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <button
+                        onClick={() => setShowSessionModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg text-blue-400 border border-blue-500/30"
+                      >
+                        <Timer className="h-4 w-4" />
+                        Log Session
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowPushModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 rounded-lg text-green-400 border border-green-500/30"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                        Log Push
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Daily Actions */}
+                <div className="lg:col-span-4">
+                  <DailyActions 
+                    actions={dailyActions}
+                    currentStreak={displayData.currentStreak}
+                  />
+                </div>
+
+                {/* Active Projects */}
+                <div className="lg:col-span-4">
+                  <div className="glass-card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold">Active Projects</h3>
+                    </div>
+                    
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {displayData.projects && displayData.projects.length > 0 ? (
+                        displayData.projects.map((project: any) => (
+                          <div key={project.id} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm mb-1 truncate">{project.title}</h4>
+                                <p className="text-xs text-white/60 mb-2 line-clamp-2">{project.description}</p>
+                                <div className="flex items-center gap-4 text-xs">
+                                  <span className="text-green-400 font-medium">
+                                    ${project.revenue?.toLocaleString() || '0'}
+                                  </span>
+                                  <span className="text-white/50 capitalize">{project.status}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleEditProject(project)}
+                                className="p-1 hover:bg-white/10 rounded"
+                              >
+                                <MoreHorizontal className="h-4 w-4 text-white/60" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-white/60">
+                          <Rocket className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No projects yet</p>
+                          <p className="text-xs mt-1">Create your first project to get started!</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="lg:col-span-4">
+                  <PushLogs logs={pushLogs} />
+                </div>
+
+                {/* X Feed */}
+                <div className="lg:col-span-4">
+                  <XFeed limit={5} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="max-w-4xl mx-auto">
+              {/* Settings Header */}
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold mb-2">Settings</h1>
+                <p className="text-white/60">Manage your account, timezone, and debug authentication</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Authentication Status */}
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Shield className="h-6 w-6 text-blue-400" />
+                    <h2 className="text-xl font-semibold">Authentication Status</h2>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <span className="text-sm font-medium">Session Status</span>
+                      <div className="flex items-center gap-2">
+                        {user ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 text-green-400" />
+                            <span className="text-green-400 text-sm">Authenticated</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 text-red-400" />
+                            <span className="text-red-400 text-sm">Not authenticated</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {user && (
+                      <>
+                        <div className="p-3 bg-white/5 rounded-lg">
+                          <div className="text-sm font-medium mb-2">User ID</div>
+                          <div className="text-xs text-white/60 font-mono">{user.id}</div>
+                        </div>
+
+                        <div className="p-3 bg-white/5 rounded-lg">
+                          <div className="text-sm font-medium mb-2">Email</div>
+                          <div className="text-sm text-white/80">{user.email}</div>
+                        </div>
+
+                        {userStats?.profile?.twitter_username && (
+                          <div className="p-3 bg-white/5 rounded-lg">
+                            <div className="text-sm font-medium mb-2">Twitter Username</div>
+                            <div className="text-sm text-white/80">@{userStats.profile.twitter_username}</div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <button
+                      onClick={() => signOut()}
+                      className="w-full flex items-center justify-center gap-2 p-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+
+                {/* Timezone Settings */}
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Globe className="h-6 w-6 text-green-400" />
+                    <h2 className="text-xl font-semibold">Timezone Settings</h2>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="p-3 bg-white/5 rounded-lg">
+                      <div className="text-sm font-medium mb-2">Detected Timezone</div>
+                      <div className="text-sm text-white/80">{detectedTimezone}</div>
+                      <div className="text-xs text-white/60 mt-1">
+                        {getCurrentTime(detectedTimezone)}
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-white/5 rounded-lg">
+                      <div className="text-sm font-medium mb-2">Current Setting</div>
+                      <select
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className="w-full p-2 bg-white/10 border border-white/20 rounded text-sm"
+                      >
+                        <option value={detectedTimezone}>Auto-detected: {detectedTimezone}</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="Europe/London">London</option>
+                        <option value="Europe/Paris">Paris</option>
+                        <option value="Asia/Tokyo">Tokyo</option>
+                        <option value="Australia/Sydney">Sydney</option>
+                      </select>
+                      <div className="text-xs text-white/60 mt-1">
+                        {getCurrentTime(timezone)}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={updateTimezone}
+                      disabled={!user}
+                      className="w-full flex items-center justify-center gap-2 p-3 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Clock className="h-4 w-4" />
+                      Update Timezone
+                    </button>
+                  </div>
+                </div>
+
+                {/* API Test */}
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Twitter className="h-6 w-6 text-blue-400" />
+                    <h2 className="text-xl font-semibold">X Feed API Test</h2>
+                  </div>
+
+                  <div className="space-y-4">
+                    <button
+                      onClick={testTwitterApi}
+                      disabled={testingApi}
+                      className="w-full flex items-center justify-center gap-2 p-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {testingApi ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Twitter className="h-4 w-4" />
+                      )}
+                      Test X Feed API
+                    </button>
+
+                    {apiTestResult && (
+                      <div className="p-3 bg-white/5 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          {apiTestResult.success ? (
+                            <CheckCircle className="h-4 w-4 text-green-400" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                          )}
+                          <span className="text-sm font-medium">
+                            Status: {apiTestResult.status}
+                          </span>
+                        </div>
+                        
+                        <div className="text-xs text-white/60 mb-2">
+                          Tested: {new Date(apiTestResult.timestamp).toLocaleString()}
+                        </div>
+
+                        {apiTestResult.data?.posts && (
+                          <div className="text-sm text-white/80">
+                            Posts returned: {apiTestResult.data.posts.length}
+                          </div>
+                        )}
+
+                        {apiTestResult.error && (
+                          <div className="text-sm text-red-400">
+                            Error: {apiTestResult.error}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Debug Info */}
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Settings className="h-6 w-6 text-purple-400" />
+                    <h2 className="text-xl font-semibold">Debug Information</h2>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="p-3 bg-white/5 rounded-lg">
+                      <div className="text-sm font-medium mb-2">Browser Timezone</div>
+                      <div className="text-xs text-white/60 font-mono max-h-20 overflow-y-auto">
+                        {JSON.stringify(Intl.DateTimeFormat().resolvedOptions(), null, 2)}
+                      </div>
+                    </div>
+
+                    {userStats?.profile && (
+                      <div className="p-3 bg-white/5 rounded-lg">
+                        <div className="text-sm font-medium mb-2">Profile Data</div>
+                        <div className="text-xs text-white/60 font-mono max-h-40 overflow-y-auto">
+                          {JSON.stringify(userStats.profile, null, 2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
-          
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Revenue */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-white/60">Revenue Progress</p>
-                  <p className="text-2xl font-semibold">${displayData.totalEarnings.toLocaleString()}</p>
-                  <p className="text-xs text-emerald-400 flex items-center gap-1 mt-1">
-                    <ArrowUp className="h-3 w-3" />
-                    {((displayData.totalEarnings / 100000) * 100).toFixed(1)}% to $100k
-                  </p>
-                </div>
-                <div className="h-10 w-10 bg-green-600/20 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-green-400" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <ProgressBar current={displayData.totalEarnings} target={100000} />
-              </div>
+
+          {/* Other tabs can be added here */}
+          {activeTab === 'deep-work' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold mb-4">Deep Work</h2>
+              <p className="text-white/60">Coming soon...</p>
             </div>
+          )}
 
-            {/* Current Streak */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-white/60">Current Streak</p>
-                  <p className="text-2xl font-semibold">{displayData.currentStreak}</p>
-                  <p className="text-xs text-orange-400">days in a row 🔥</p>
-                </div>
-                <div className="h-10 w-10 bg-orange-600/20 rounded-lg flex items-center justify-center">
-                  <Target className="h-5 w-5 text-orange-400" />
-                </div>
-              </div>
+          {activeTab === 'projects' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold mb-4">Projects</h2>
+              <p className="text-white/60">Coming soon...</p>
             </div>
+          )}
 
-            {/* Active Projects */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-white/60">Active Projects</p>
-                  <p className="text-2xl font-semibold">{displayData.activeProjects}</p>
-                  <p className="text-xs text-blue-400">building empire</p>
-                </div>
-                <div className="h-10 w-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                  <Rocket className="h-5 w-5 text-blue-400" />
-                </div>
-              </div>
+          {activeTab === 'achievements' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold mb-4">Achievements</h2>
+              <p className="text-white/60">Coming soon...</p>
             </div>
+          )}
 
-            {/* Level & Coins */}
-            <div className="stat-card">
-              <LevelBadge 
-                earnings={displayData.totalEarnings}
-                totalCoins={userStats?.profile?.total_coins || 0}
-                className="scale-75 origin-left"
-              />
+          {activeTab === 'community' && (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold mb-4">Community</h2>
+              <p className="text-white/60">Coming soon...</p>
             </div>
-          </div>
-
-          {/* Main Grid */}
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Progress Tracker */}
-            <div className="lg:col-span-2 glass-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-medium">Progress Tracker</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-emerald-400 flex items-center gap-1">
-                    <Target className="h-3 w-3" />
-                    {displayData.currentStreak} day streak
-                  </span>
-                </div>
-              </div>
-              <HeatMap data={deepWorkData} />
-              
-              <div className="mt-6 flex gap-3">
-                <button 
-                  onClick={() => setShowSessionModal(true)}
-                  disabled={dailyActions.some(action => action.action_type === 'deep_work' && action.completed)}
-                  className={`glass-button-primary flex items-center gap-2 ${
-                    dailyActions.some(action => action.action_type === 'deep_work' && action.completed)
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : ''
-                  }`}
-                >
-                  <Timer className="w-4 h-4" />
-                  {dailyActions.some(action => action.action_type === 'deep_work' && action.completed) 
-                    ? 'Session Logged' 
-                    : 'Log Session'
-                  }
-                </button>
-                <button 
-                  onClick={() => setShowPushModal(true)}
-                  disabled={dailyActions.some(action => action.action_type === 'push' && action.completed)}
-                  className={`glass-button flex items-center gap-2 ${
-                    dailyActions.some(action => action.action_type === 'push' && action.completed)
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : ''
-                  }`}
-                >
-                  <Activity className="w-4 h-4" />
-                  {dailyActions.some(action => action.action_type === 'push' && action.completed) 
-                    ? 'Push Logged' 
-                    : 'Log Push'
-                  }
-                </button>
-              </div>
-            </div>
-
-            {/* Daily Actions */}
-            <DailyActions
-              userId={user?.id || ''}
-              actions={dailyActions}
-              dailyCoinsEarned={displayData.dailyCoinsEarned}
-              currentStreak={displayData.currentStreak}
-            />
-          </div>
-
-          {/* Projects & Community */}
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Recent Projects */}
-            <div className="glass-card overflow-hidden">
-              <div className="p-6 border-b border-white/10">
-                <h2 className="font-medium">Active Projects</h2>
-              </div>
-              
-              <div className="max-h-80 overflow-y-auto">
-                <div className="p-4 space-y-3">
-                  {displayData.projects && displayData.projects.length > 0 ? (
-                    displayData.projects.map((project: any) => (
-                      <div key={project.id} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                          <Rocket className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium text-sm">{project.title}</div>
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                              project.status === 'live' 
-                                ? 'bg-green-500/20 text-green-300' 
-                                : project.status === 'development'
-                                ? 'bg-yellow-500/20 text-yellow-300'
-                                : 'bg-gray-500/20 text-gray-300'
-                            }`}>
-                              {project.status}
-                            </span>
-                          </div>
-                          <div className="text-xs text-white/60">
-                            ${project.revenue.toLocaleString()}
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => handleEditProject(project)}
-                          className="p-1 hover:bg-white/10 rounded transition-colors"
-                          title="Edit project"
-                        >
-                          <MoreHorizontal className="h-4 w-4 text-white/40 hover:text-white/60" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-white/60">
-                      <Rocket className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No projects yet</p>
-                      <p className="text-xs">Create your first project to start tracking revenue!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Push Logs */}
-            <PushLogs 
-              userId={user?.id || "demo-user"}
-              logs={pushLogs}
-              loading={statsLoading}
-            />
-
-            {/* X Feed */}
-            <div className="lg:col-span-1">
-                              <XFeed limit={5} />
-            </div>
-          </div>
-        </section>
+          )}
+        </main>
       </div>
 
       {/* Log Session Modal */}
